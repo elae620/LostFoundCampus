@@ -13,3 +13,8 @@
 .externalNativeBuild
 .cxx
 local.properties
+
+# Android Studio : fichiers propres au poste
+/.idea/deploymentTargetSelector.xml
+/.idea/misc.xml
+/.idea/vcs.xml
