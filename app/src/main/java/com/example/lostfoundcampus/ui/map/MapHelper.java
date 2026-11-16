@@ -17,13 +17,14 @@ import com.example.lostfoundcampus.R;
 import com.example.lostfoundcampus.data.model.CampusLocation;
 
 import org.osmdroid.config.Configuration;
-
-import java.io.File;
+import org.osmdroid.config.IConfigurationProvider;
 import org.osmdroid.tileprovider.tilesource.TileSourceFactory;
 import org.osmdroid.util.GeoPoint;
 import org.osmdroid.views.CustomZoomButtonsController;
 import org.osmdroid.views.MapView;
 import org.osmdroid.views.overlay.Marker;
+
+import java.io.File;
 
 /**
  * Création des cartes OpenStreetMap (osmdroid). Toute erreur est absorbée :
@@ -52,7 +53,7 @@ public final class MapHelper {
         Context context = container.getContext();
         if (!isNetworkAvailable(context)) return null;
         try {
-            Configuration config = Configuration.getInstance();
+            IConfigurationProvider config = Configuration.getInstance();
             config.load(context, context.getSharedPreferences(PREFS, Context.MODE_PRIVATE));
             // Politique d'usage des tuiles OSM : un user-agent propre à l'app est obligatoire.
             config.setUserAgentValue(BuildConfig.APPLICATION_ID);
