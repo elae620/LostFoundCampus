@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Illustration factice (étape 1) : remplacée par les vraies photos à l'étape 2. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="320dp"
+    android:height="240dp"
+    android:viewportWidth="320"
+    android:viewportHeight="240">
+    <path android:fillColor="@color/lf_peach" android:pathData="M0,0h320v240h-320z" />
+    <path android:fillColor="@color/illu_wallet" android:pathData="M92,68h136a16,16 0,0 1,16,16v80a16,16 0,0 1,-16,16h-136a16,16 0,0 1,-16,-16v-80a16,16 0,0 1,16,-16z" />
+    <path android:fillColor="@color/illu_wallet_dark" android:pathData="M190,94h40a14,14 0,0 1,14,14v28a14,14 0,0 1,-14,14h-40a14,14 0,0 1,-14,-14v-28a14,14 0,0 1,14,-14z" />
+    <path android:fillColor="@color/lf_peach" android:pathData="M190,122a6,6 0,1 1,12,0a6,6 0,1 1,-12,0z" />
+    <path android:strokeColor="@color/illu_wallet_dark" android:strokeWidth="2" android:strokeLineCap="round" android:pathData="M92,84h70" />
+</vector>

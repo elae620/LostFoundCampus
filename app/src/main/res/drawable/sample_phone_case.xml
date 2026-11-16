@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Illustration factice (étape 1) : remplacée par les vraies photos à l'étape 2. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="320dp"
+    android:height="240dp"
+    android:viewportWidth="320"
+    android:viewportHeight="240">
+    <path android:fillColor="@color/lf_slate_200" android:pathData="M0,0h320v240h-320z" />
+    <path android:fillColor="@color/illu_case" android:pathData="M138,22h44a16,16 0,0 1,16,16v164a16,16 0,0 1,-16,16h-44a16,16 0,0 1,-16,-16v-164a16,16 0,0 1,16,-16z" />
+    <path android:fillColor="@color/lf_slate_200" android:pathData="M141,32h12a9,9 0,0 1,9,9v20a9,9 0,0 1,-9,9h-12a9,9 0,0 1,-9,-9v-20a9,9 0,0 1,9,-9z" />
+    <path android:fillColor="@color/illu_bag" android:pathData="M122,104h76a0,0 0,0 1,0,0v8a0,0 0,0 1,-0,0h-76a0,0 0,0 1,-0,-0v-8a0,0 0,0 1,0,-0z" />
+</vector>

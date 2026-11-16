@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Illustration factice (étape 1) : remplacée par les vraies photos à l'étape 2. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="320dp"
+    android:height="240dp"
+    android:viewportWidth="320"
+    android:viewportHeight="240">
+    <path android:fillColor="@color/lf_slate_200" android:pathData="M0,0h320v240h-320z" />
+    <path android:fillColor="@color/lf_white" android:pathData="M80,62h160a14,14 0,0 1,14,14v90a14,14 0,0 1,-14,14h-160a14,14 0,0 1,-14,-14v-90a14,14 0,0 1,14,-14z" />
+    <path android:fillColor="@color/lf_violet_600" android:pathData="M80,62h160a14,14 0,0 1,14,14v-2a14,14 0,0 1,-14,14h-160a14,14 0,0 1,-14,-14v--2a14,14 0,0 1,14,-14z" />
+    <path android:fillColor="@color/lf_violet_600" android:pathData="M66,76h188v12h-188z" />
+    <path android:fillColor="@color/lf_peach" android:pathData="M90,100h32a8,8 0,0 1,8,8v42a8,8 0,0 1,-8,8h-32a8,8 0,0 1,-8,-8v-42a8,8 0,0 1,8,-8z" />
+    <path android:fillColor="@color/lf_outline" android:pathData="M147,104h82a5,5 0,0 1,5,5v0a5,5 0,0 1,-5,5h-82a5,5 0,0 1,-5,-5v-0a5,5 0,0 1,5,-5z" />
+    <path android:fillColor="@color/lf_outline" android:pathData="M147,124h60a5,5 0,0 1,5,5v0a5,5 0,0 1,-5,5h-60a5,5 0,0 1,-5,-5v-0a5,5 0,0 1,5,-5z" />
+    <path android:fillColor="@color/lf_outline" android:pathData="M147,144h72a5,5 0,0 1,5,5v0a5,5 0,0 1,-5,5h-72a5,5 0,0 1,-5,-5v-0a5,5 0,0 1,5,-5z" />
+</vector>
