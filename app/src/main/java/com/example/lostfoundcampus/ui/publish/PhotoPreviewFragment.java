@@ -1,25 +1,42 @@
 package com.example.lostfoundcampus.ui.publish;
 
+import android.content.ActivityNotFoundException;
+import android.net.Uri;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
 import androidx.lifecycle.ViewModelProvider;
 
+import com.bumptech.glide.Glide;
 import com.example.lostfoundcampus.R;
 import com.example.lostfoundcampus.databinding.FragmentPhotoPreviewBinding;
 import com.example.lostfoundcampus.ui.common.Nav;
 import com.example.lostfoundcampus.util.InsetsUtil;
+import com.google.android.material.snackbar.Snackbar;
 
-/** Aperçu plein cadre de la photo prise : « Analyser avec l'IA » ou « Reprendre la photo ». */
+import java.io.IOException;
+
+/** Aperçu plein cadre de la photo prise : « Analyser avec l'IA » ou « Reprendre la photo » (relance la caméra). */
 public class PhotoPreviewFragment extends Fragment {
 
     private FragmentPhotoPreviewBinding b;
     private PublishViewModel vm;
+
+    private final ActivityResultLauncher<Uri> retake =
+            registerForActivityResult(new ActivityResultContracts.TakePicture(), saved -> {
+                if (Boolean.TRUE.equals(saved) && vm.cameraTarget != null) {
+                    vm.pendingPhoto = vm.cameraTarget;
+                    vm.cameraTarget = null;
+                    if (b != null) showPhoto();
+                }
+            });
 
     @Override
     public void onCreate(@Nullable Bundle savedInstanceState) {
@@ -40,11 +57,10 @@ public class PhotoPreviewFragment extends Fragment {
         InsetsUtil.applyBottom(b.actions, false);
 
         if (vm.pendingPhoto == null) {
-            // Rien à prévisualiser (ex. retour après une restauration) : on revient au formulaire.
             Nav.of(this).popBackStack();
             return;
         }
-        b.imgPhoto.setImageResource(vm.pendingPhoto);
+        showPhoto();
 
         b.btnClose.setOnClickListener(v -> {
             vm.pendingPhoto = null;
@@ -52,10 +68,17 @@ public class PhotoPreviewFragment extends Fragment {
         });
         b.btnAnalyze.setOnClickListener(v -> Nav.go(this, R.id.aiAnalysisFragment, null));
         b.btnRetake.setOnClickListener(v -> {
-            // ÉTAPE 1 : nouvelle prise de vue simulée. Étape 2 : relance TakePicture.
-            vm.pendingPhoto = SimulatedMedia.capturePhoto();
-            b.imgPhoto.setImageResource(vm.pendingPhoto);
+            try {
+                vm.cameraTarget = CameraFiles.newTarget(requireContext());
+                retake.launch(vm.cameraTarget);
+            } catch (IOException | ActivityNotFoundException e) {
+                Snackbar.make(b.getRoot(), R.string.error_camera_unavailable, Snackbar.LENGTH_LONG).show();
+            }
         });
+    }
+
+    private void showPhoto() {
+        Glide.with(this).load(vm.pendingPhoto).fitCenter().into(b.imgPhoto);
     }
 
     @Override

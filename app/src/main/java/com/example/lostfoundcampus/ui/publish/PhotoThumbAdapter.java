@@ -10,6 +10,7 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.example.lostfoundcampus.R;
 import com.example.lostfoundcampus.databinding.ItemAddPhotoBinding;
 import com.example.lostfoundcampus.databinding.ItemPhotoThumbBinding;
+import com.example.lostfoundcampus.ui.common.ImageLoader;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -26,7 +27,7 @@ class PhotoThumbAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
     private static final int TYPE_PHOTO = 0;
     private static final int TYPE_ADD = 1;
 
-    private final List<Integer> photos = new ArrayList<>();
+    private final List<PublishViewModel.PhotoItem> photos = new ArrayList<>();
     private final Listener listener;
     private boolean showAddTile;
     private boolean cameraMode;
@@ -35,7 +36,7 @@ class PhotoThumbAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         this.listener = listener;
     }
 
-    void submit(List<Integer> data, boolean showAdd, boolean camera) {
+    void submit(List<PublishViewModel.PhotoItem> data, boolean showAdd, boolean camera) {
         photos.clear();
         photos.addAll(data);
         showAddTile = showAdd;
@@ -69,7 +70,9 @@ class PhotoThumbAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
             ItemPhotoThumbBinding b = ((PhotoHolder) holder).b;
             Context c = b.getRoot().getContext();
             int number = position + 1;
-            b.imgThumb.setImageResource(photos.get(position));
+            PublishViewModel.PhotoItem item = photos.get(position);
+            if (item.localUri != null) ImageLoader.local(b.imgThumb, item.localUri);
+            else ImageLoader.announcementPhoto(b.imgThumb, item.remotePath);
             b.imgThumb.setContentDescription(c.getString(R.string.cd_photo_thumb, number));
             b.btnRemove.setContentDescription(c.getString(R.string.cd_remove_photo, number));
             b.btnRemove.setOnClickListener(v -> {

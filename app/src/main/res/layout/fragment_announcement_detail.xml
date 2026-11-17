@@ -58,50 +58,6 @@
                 android:paddingEnd="@dimen/lf_screen_padding"
                 android:paddingBottom="@dimen/lf_space_xxl">
 
-                <!-- DEBUG (étape 1) : à retirer avec DebugFlags -->
-                <LinearLayout
-                    android:id="@+id/debugAuthorCard"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginBottom="@dimen/lf_space_lg"
-                    android:background="@drawable/bg_debug"
-                    android:gravity="center_vertical"
-                    android:orientation="horizontal"
-                    android:paddingStart="@dimen/lf_space_md"
-                    android:paddingEnd="@dimen/lf_space_sm"
-                    android:visibility="gone">
-
-                    <LinearLayout
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:orientation="vertical"
-                        android:paddingTop="@dimen/lf_space_sm"
-                        android:paddingBottom="@dimen/lf_space_sm">
-
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:labelFor="@id/switchAuthor"
-                            android:text="@string/debug_author_mode"
-                            android:textAppearance="@style/TextAppearance.LF.LabelStrong"
-                            android:textColor="@color/lf_debug_ink" />
-
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="@string/debug_author_hint"
-                            android:textAppearance="@style/TextAppearance.LF.Caption"
-                            android:textColor="@color/lf_debug_ink" />
-                    </LinearLayout>
-
-                    <com.google.android.material.materialswitch.MaterialSwitch
-                        android:id="@+id/switchAuthor"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:contentDescription="@string/debug_author_mode" />
-                </LinearLayout>
-
                 <TextView
                     android:id="@+id/txtTitle"
                     android:layout_width="match_parent"

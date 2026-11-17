@@ -11,6 +11,7 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.example.lostfoundcampus.R;
 import com.example.lostfoundcampus.data.model.Announcement;
 import com.example.lostfoundcampus.databinding.ItemAnnouncementBinding;
+import com.example.lostfoundcampus.ui.common.ImageLoader;
 import com.example.lostfoundcampus.ui.common.UiUtils;
 import com.example.lostfoundcampus.ui.map.MapHelper;
 import com.example.lostfoundcampus.util.DateUtil;
@@ -38,6 +39,13 @@ public class AnnouncementAdapter extends RecyclerView.Adapter<AnnouncementAdapte
         notifyDataSetChanged();
     }
 
+    /** Ajoute la page suivante du fil. */
+    public void append(List<Announcement> more) {
+        int start = items.size();
+        items.addAll(more);
+        notifyItemRangeInserted(start, more.size());
+    }
+
     @NonNull
     @Override
     public Holder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
@@ -48,7 +56,7 @@ public class AnnouncementAdapter extends RecyclerView.Adapter<AnnouncementAdapte
     public void onBindViewHolder(@NonNull Holder h, int position) {
         Announcement a = items.get(position);
         Context c = h.b.getRoot().getContext();
-        h.b.imgPhoto.setImageResource(a.coverPhoto());
+        ImageLoader.announcementPhoto(h.b.imgPhoto, a.coverPath());
         h.b.imgPhoto.setContentDescription(c.getString(R.string.cd_announcement_photo, a.title));
         UiUtils.bindTypeBadge(h.b.txtBadge, a.type);
         h.b.txtDate.setText(DateUtil.relativeShort(c, a.eventDate));

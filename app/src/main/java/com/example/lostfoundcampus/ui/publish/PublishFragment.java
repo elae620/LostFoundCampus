@@ -1,13 +1,16 @@
 package com.example.lostfoundcampus.ui.publish;
 
+import android.content.ActivityNotFoundException;
 import android.content.res.ColorStateList;
+import android.net.Uri;
 import android.os.Bundle;
-import android.os.Handler;
-import android.os.Looper;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.PickVisualMediaRequest;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.core.content.ContextCompat;
@@ -19,17 +22,21 @@ import androidx.navigation.NavOptions;
 import androidx.recyclerview.widget.LinearLayoutManager;
 
 import com.example.lostfoundcampus.R;
-import com.example.lostfoundcampus.data.FakeRepository;
+import com.example.lostfoundcampus.data.AnnouncementRepository;
+import com.example.lostfoundcampus.data.ResultCallback;
 import com.example.lostfoundcampus.data.model.Announcement;
 import com.example.lostfoundcampus.data.model.AnnouncementType;
 import com.example.lostfoundcampus.data.model.CampusLocation;
 import com.example.lostfoundcampus.data.model.Category;
 import com.example.lostfoundcampus.data.model.ColorSwatch;
 import com.example.lostfoundcampus.data.model.ImageAnalysis;
+import com.example.lostfoundcampus.data.remote.dto.PhotoAnalysisDto;
 import com.example.lostfoundcampus.databinding.FragmentPublishBinding;
 import com.example.lostfoundcampus.ui.common.Nav;
 import com.example.lostfoundcampus.ui.detail.AnnouncementDetailFragment;
+import com.example.lostfoundcampus.ui.map.LocationHelper;
 import com.example.lostfoundcampus.ui.map.LocationPickerFragment;
+import com.example.lostfoundcampus.ui.map.MapHelper;
 import com.example.lostfoundcampus.ui.map.MiniMapController;
 import com.example.lostfoundcampus.util.DateUtil;
 import com.example.lostfoundcampus.util.InsetsUtil;
@@ -39,22 +46,36 @@ import com.google.android.material.datepicker.MaterialDatePicker;
 import com.google.android.material.snackbar.Snackbar;
 import com.google.android.material.tabs.TabLayout;
 
+import java.io.IOException;
 import java.util.Calendar;
+import java.util.List;
 import java.util.TimeZone;
 
-/** Publier une annonce : onglets « J'ai perdu » (galerie) et « J'ai trouvé » (caméra), mode édition. */
+/** Publier une annonce : « J'ai perdu » (galerie), « J'ai trouvé » (caméra + position), et modification. */
 public class PublishFragment extends Fragment {
 
     private static final String ARG_TYPE = "type";
     private static final String ARG_EDIT_ID = "edit_id";
     private static final String TAG_DATE_PICKER = "date_picker";
+    private static final int MAX_PICK = 5;
 
     private FragmentPublishBinding b;
     private PublishViewModel vm;
     private PhotoThumbAdapter thumbs;
     private MiniMapController miniMap;
-    private final Handler handler = new Handler(Looper.getMainLooper());
+    @Nullable
+    private AnnouncementPublisher publisher;
     private boolean binding;
+    private boolean loadingEdit;
+    private boolean permissionAsked;
+
+    // ---- Résultats d'activité : Photo Picker, appareil photo, permission de localisation
+    private final ActivityResultLauncher<PickVisualMediaRequest> pickPhotos =
+            registerForActivityResult(new ActivityResultContracts.PickMultipleVisualMedia(MAX_PICK), this::onPhotosPicked);
+    private final ActivityResultLauncher<Uri> takePicture =
+            registerForActivityResult(new ActivityResultContracts.TakePicture(), this::onPhotoTaken);
+    private final ActivityResultLauncher<String[]> askLocation =
+            registerForActivityResult(new ActivityResultContracts.RequestMultiplePermissions(), result -> captureLocation());
 
     public static Bundle argsNew(AnnouncementType type) {
         Bundle args = new Bundle();
@@ -78,10 +99,11 @@ public class PublishFragment extends Fragment {
         vm = new ViewModelProvider(requireActivity()).get(PublishViewModel.class);
         if (savedInstanceState == null) {
             Bundle args = getArguments();
-            Announcement toEdit = args == null ? null
-                    : FakeRepository.get().announcement(args.getString(ARG_EDIT_ID));
-            if (toEdit != null) {
-                vm.loadForEdit(toEdit);
+            String editId = args == null ? null : args.getString(ARG_EDIT_ID);
+            if (editId != null) {
+                vm.reset(AnnouncementType.LOST);
+                vm.editingId = editId;
+                loadForEdit(editId);
             } else {
                 String type = args == null ? null : args.getString(ARG_TYPE);
                 vm.reset(type == null ? AnnouncementType.LOST : AnnouncementType.valueOf(type));
@@ -110,11 +132,46 @@ public class PublishFragment extends Fragment {
         setUpFields();
         miniMap = new MiniMapController(b.miniMap, this::openLocationPicker);
         b.btnAnalyze.setOnClickListener(v -> Nav.go(this, R.id.aiAnalysisFragment, null));
-        b.btnPublish.setText(vm.isEditing() ? R.string.publish_save : R.string.publish_submit);
         b.btnPublish.setOnClickListener(v -> submit());
 
         observeLocationResult();
         render();
+        ensureCapturedLocation();
+    }
+
+    // ------------------------------------------------------------------ Modification
+
+    private void loadForEdit(String id) {
+        loadingEdit = true;
+        AnnouncementRepository repo = AnnouncementRepository.get(requireContext());
+        repo.get(id, new ResultCallback<Announcement>() {
+            @Override
+            public void onSuccess(Announcement a) {
+                repo.analyses(id, new ResultCallback<List<PhotoAnalysisDto>>() {
+                    @Override
+                    public void onSuccess(List<PhotoAnalysisDto> analyses) {
+                        vm.loadForEdit(a, analyses);
+                        loadingEdit = false;
+                        if (b != null) render();
+                    }
+
+                    @Override
+                    public void onError(String message) {
+                        vm.loadForEdit(a, java.util.Collections.<PhotoAnalysisDto>emptyList());
+                        loadingEdit = false;
+                        if (b != null) render();
+                    }
+                });
+            }
+
+            @Override
+            public void onError(String message) {
+                loadingEdit = false;
+                if (b == null) return;
+                Nav.main(PublishFragment.this).showMessage(message);
+                Nav.back(PublishFragment.this);
+            }
+        });
     }
 
     // ------------------------------------------------------------------ Onglets
@@ -128,6 +185,7 @@ public class PublishFragment extends Fragment {
                 vm.setType(t.getPosition() == 1 ? AnnouncementType.FOUND : AnnouncementType.LOST);
                 b.txtPhotoError.setVisibility(View.GONE);
                 render();
+                ensureCapturedLocation();
             }
 
             @Override
@@ -161,17 +219,35 @@ public class PublishFragment extends Fragment {
     }
 
     private void addPhotos() {
-        int remaining = vm.remainingSlots(maxPhotos());
-        if (remaining == 0) return;
+        if (vm.remainingSlots(maxPhotos()) == 0) return;
         b.txtPhotoError.setVisibility(View.GONE);
         if (vm.type == AnnouncementType.FOUND) {
-            // « J'ai trouvé » : caméra uniquement. ÉTAPE 1 : prise de vue simulée.
-            vm.pendingPhoto = SimulatedMedia.capturePhoto();
-            Nav.go(this, R.id.photoPreviewFragment, null);
+            // « J'ai trouvé » : appareil photo uniquement.
+            try {
+                vm.cameraTarget = CameraFiles.newTarget(requireContext());
+                takePicture.launch(vm.cameraTarget);
+            } catch (IOException | ActivityNotFoundException e) {
+                snack(getString(R.string.error_camera_unavailable));
+            }
         } else {
-            // « J'ai perdu » : galerie, sélection multiple. ÉTAPE 1 : sélection simulée.
-            vm.addPhotos(SimulatedMedia.pickFromGallery(remaining), maxPhotos());
-            renderPhotos();
+            // « J'ai perdu » : Photo Picker, sélection multiple (aucune permission de stockage).
+            pickPhotos.launch(new PickVisualMediaRequest.Builder()
+                    .setMediaType(ActivityResultContracts.PickVisualMedia.ImageOnly.INSTANCE)
+                    .build());
+        }
+    }
+
+    private void onPhotosPicked(List<Uri> uris) {
+        if (uris == null || uris.isEmpty()) return;
+        vm.addLocalPhotos(uris, maxPhotos());
+        if (b != null) renderPhotos();
+    }
+
+    private void onPhotoTaken(Boolean saved) {
+        if (Boolean.TRUE.equals(saved) && vm.cameraTarget != null) {
+            vm.pendingPhoto = vm.cameraTarget;
+            vm.cameraTarget = null;
+            Nav.go(this, R.id.photoPreviewFragment, null);
         }
     }
 
@@ -193,10 +269,11 @@ public class PublishFragment extends Fragment {
         b.btnAddPhotos.setIconResource(found ? R.drawable.ic_camera : R.drawable.ic_gallery);
         b.btnAddPhotos.setVisibility(count == 0 ? View.VISIBLE : View.GONE);
 
+        boolean toAnalyze = !vm.analysisTargets().isEmpty();
         b.groupAnalyze.setVisibility(count > 0 ? View.VISIBLE : View.GONE);
-        boolean analysed = vm.analysis != null;
-        b.txtAnalysisStatus.setText(analysed ? R.string.publish_analysis_done : R.string.publish_analysis_none);
-        b.btnAnalyze.setVisibility(analysed ? View.GONE : View.VISIBLE);
+        b.txtAnalysisStatus.setText(!toAnalyze && vm.analysis != null
+                ? R.string.publish_analysis_done : R.string.publish_analysis_none);
+        b.btnAnalyze.setVisibility(toAnalyze ? View.VISIBLE : View.GONE);
     }
 
     // ------------------------------------------------------------------ Analyse
@@ -206,14 +283,20 @@ public class PublishFragment extends Fragment {
         b.cardAnalysis.setVisibility(a == null ? View.GONE : View.VISIBLE);
         if (a == null) return;
         b.rowLabel.txtRowLabel.setText(R.string.analysis_label);
-        b.rowLabel.txtRowValue.setText(getString(R.string.analysis_label_value, a.label, a.confidence));
+        b.rowLabel.txtRowValue.setText(getString(R.string.analysis_label_value, a.displayLabel, a.confidence));
         b.rowText.txtRowLabel.setText(R.string.analysis_text);
-        b.rowText.txtRowValue.setText(a.hasText() ? a.detectedText : getString(R.string.analysis_text_none));
+        String text = a.mainText();
+        b.rowText.txtRowValue.setText(text != null ? text : getString(R.string.analysis_text_none));
         b.rowColor.txtRowLabel.setText(R.string.analysis_color);
-        b.rowColor.txtRowValue.setText(a.dominantColor.labelRes);
-        b.rowColor.swatch.setVisibility(View.VISIBLE);
-        ViewCompat.setBackgroundTintList(b.rowColor.swatch, ColorStateList.valueOf(
-                ContextCompat.getColor(requireContext(), a.dominantColor.colorRes)));
+        if (a.dominantColor != null) {
+            b.rowColor.txtRowValue.setText(a.dominantColor.labelRes);
+            b.rowColor.swatch.setVisibility(View.VISIBLE);
+            ViewCompat.setBackgroundTintList(b.rowColor.swatch, ColorStateList.valueOf(
+                    ContextCompat.getColor(requireContext(), a.dominantColor.colorRes)));
+        } else {
+            b.rowColor.txtRowValue.setText(R.string.color_unknown);
+            b.rowColor.swatch.setVisibility(View.GONE);
+        }
     }
 
     // ------------------------------------------------------------------ Champs
@@ -309,6 +392,41 @@ public class PublishFragment extends Fragment {
 
     // ------------------------------------------------------------------ Lieu
 
+    /** « J'ai trouvé » : le lieu est prérempli avec la position actuelle. */
+    private void ensureCapturedLocation() {
+        if (!vm.needsCapturedLocation() || vm.locating) return;
+        if (LocationHelper.hasPermission(requireContext())) {
+            captureLocation();
+        } else if (!permissionAsked) {
+            permissionAsked = true;
+            askLocation.launch(LocationHelper.PERMISSIONS);
+        }
+    }
+
+    private void captureLocation() {
+        if (!vm.needsCapturedLocation()) return;
+        if (!LocationHelper.hasPermission(requireContext())) {
+            if (b != null) miniMap.show(null, MapHelper.defaultCenter(), getString(R.string.location_permission_denied));
+            return;
+        }
+        vm.locating = true;
+        renderLocation();
+        LocationHelper.current(requireContext(), new LocationHelper.Callback() {
+            @Override
+            public void onLocation(@NonNull CampusLocation location) {
+                vm.locating = false;
+                if (vm.needsCapturedLocation()) vm.setCapturedLocation(location);
+                if (b != null) renderLocation();
+            }
+
+            @Override
+            public void onUnavailable(int reason) {
+                vm.locating = false;
+                if (b != null) miniMap.show(null, MapHelper.defaultCenter(), getString(reason));
+            }
+        });
+    }
+
     private void openLocationPicker() {
         Nav.go(this, R.id.locationPickerFragment, LocationPickerFragment.args(vm.location));
     }
@@ -327,14 +445,21 @@ public class PublishFragment extends Fragment {
     }
 
     private void renderLocation() {
+        if (vm.locating && vm.location == null) {
+            miniMap.show(null, MapHelper.defaultCenter(), getString(R.string.location_searching));
+            return;
+        }
         String override = vm.locationCaptured && vm.location != null && !vm.location.hasPrecision()
                 ? getString(R.string.map_captured_position) : null;
-        miniMap.show(vm.location, FakeRepository.get().campusCenter(), override);
+        miniMap.show(vm.location, MapHelper.defaultCenter(), override);
     }
 
     // ------------------------------------------------------------------ Rendu global
 
     private void render() {
+        b.btnPublish.setEnabled(!loadingEdit && publisher == null);
+        b.btnPublish.setText(loadingEdit ? getString(R.string.loading)
+                : getString(vm.isEditing() ? R.string.publish_save : R.string.publish_submit));
         renderPhotos();
         renderAnalysis();
         renderFields();
@@ -377,17 +502,39 @@ public class PublishFragment extends Fragment {
             return;
         }
 
+        final boolean editing = vm.isEditing();
         b.btnPublish.setEnabled(false);
         b.btnPublish.setText(R.string.publish_loading);
-        final boolean editing = vm.isEditing();
-        // ÉTAPE 1 : enregistrement local. Étape 2 : compression, envoi Storage, document Firestore.
-        handler.postDelayed(() -> {
-            if (b == null) return;
-            String id = vm.save(FakeRepository.get());
-            NavOptions options = new NavOptions.Builder().setPopUpTo(R.id.publishFragment, true).build();
-            Nav.of(this).navigate(R.id.announcementDetailFragment, AnnouncementDetailFragment.args(id), options);
-            Nav.main(this).showMessage(editing ? R.string.publish_updated : R.string.publish_success);
-        }, getResources().getInteger(R.integer.lf_fake_network_delay_ms));
+        publisher = new AnnouncementPublisher(requireContext(), vm, new AnnouncementPublisher.Listener() {
+            @Override
+            public void onProgress(String message) {
+                if (b != null) b.btnPublish.setText(message);
+            }
+
+            @Override
+            public void onDone(@NonNull String announcementId) {
+                publisher = null;
+                if (b == null) return;
+                NavOptions options = new NavOptions.Builder().setPopUpTo(R.id.publishFragment, true).build();
+                Nav.of(PublishFragment.this).navigate(R.id.announcementDetailFragment,
+                        AnnouncementDetailFragment.args(announcementId), options);
+                Nav.main(PublishFragment.this).showMessage(editing ? R.string.publish_updated : R.string.publish_success);
+            }
+
+            @Override
+            public void onError(@NonNull String message) {
+                publisher = null;
+                if (b == null) return;
+                b.btnPublish.setEnabled(true);
+                b.btnPublish.setText(editing ? R.string.publish_save : R.string.publish_submit);
+                Snackbar.make(b.getRoot(), message, Snackbar.LENGTH_LONG).setAnchorView(b.bottomBar).show();
+            }
+        });
+        publisher.start();
+    }
+
+    private void snack(String message) {
+        Snackbar.make(b.getRoot(), message, Snackbar.LENGTH_LONG).setAnchorView(b.bottomBar).show();
     }
 
     @Override
@@ -405,8 +552,13 @@ public class PublishFragment extends Fragment {
     @Override
     public void onDestroyView() {
         super.onDestroyView();
-        handler.removeCallbacksAndMessages(null);
         miniMap.onDestroy();
         b = null;
+    }
+
+    @Override
+    public void onDestroy() {
+        super.onDestroy();
+        if (publisher != null) publisher.cancel();
     }
 }

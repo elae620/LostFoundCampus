@@ -14,9 +14,12 @@ import androidx.annotation.Nullable;
 import androidx.core.content.ContextCompat;
 import androidx.fragment.app.Fragment;
 import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.lostfoundcampus.R;
-import com.example.lostfoundcampus.data.FakeRepository;
+import com.example.lostfoundcampus.data.AnnouncementRepository;
+import com.example.lostfoundcampus.data.ProfileRepository;
+import com.example.lostfoundcampus.data.ResultCallback;
 import com.example.lostfoundcampus.data.model.Announcement;
 import com.example.lostfoundcampus.data.model.AnnouncementType;
 import com.example.lostfoundcampus.data.model.Category;
@@ -32,10 +35,12 @@ import com.google.android.material.tabs.TabLayout;
 
 import java.util.List;
 
+/** Fil des annonces actives : chargement paginé, filtres type / catégorie, recherche par mot-clé. */
 public class HomeFragment extends Fragment {
 
     private static final String STATE_TAB = "tab";
     private static final String STATE_CATEGORY = "category";
+    private static final long SEARCH_DEBOUNCE_MS = 400;
 
     private FragmentHomeBinding b;
     private AnnouncementAdapter adapter;
@@ -44,8 +49,13 @@ public class HomeFragment extends Fragment {
     private int selectedTab = 0;
     @Nullable
     private Category selectedCategory;
-    /** Le premier affichage simule un chargement réseau ; les retours sur l'écran sont immédiats. */
-    private boolean loadedOnce;
+    /** Incrémenté à chaque nouvelle recherche : les réponses d'une ancienne requête sont ignorées. */
+    private int requestId;
+    private int loadedCount;
+    private boolean loading;
+    private boolean endReached;
+
+    private final Runnable debouncedRefresh = this::reload;
 
     @Override
     public void onCreate(@Nullable Bundle savedInstanceState) {
@@ -54,7 +64,6 @@ public class HomeFragment extends Fragment {
             selectedTab = savedInstanceState.getInt(STATE_TAB);
             int cat = savedInstanceState.getInt(STATE_CATEGORY, -1);
             selectedCategory = cat >= 0 ? Category.values()[cat] : null;
-            loadedOnce = true;
         }
     }
 
@@ -68,15 +77,20 @@ public class HomeFragment extends Fragment {
     @Override
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         InsetsUtil.applyTop(b.appBar);
-
-        User me = FakeRepository.get().currentUser();
-        b.txtGreeting.setText(getString(R.string.home_greeting, me.firstName()));
-        UiUtils.bindAvatar(b.txtAvatar, b.imgAvatar, me);
         b.avatarButton.setOnClickListener(v -> Nav.main(this).selectTab(R.id.profileFragment));
+        bindMe(ProfileRepository.get(requireContext()).cachedMe());
 
         adapter = new AnnouncementAdapter(this::openDetail);
-        b.list.setLayoutManager(new LinearLayoutManager(requireContext()));
+        LinearLayoutManager lm = new LinearLayoutManager(requireContext());
+        b.list.setLayoutManager(lm);
         b.list.setAdapter(adapter);
+        b.list.addOnScrollListener(new RecyclerView.OnScrollListener() {
+            @Override
+            public void onScrolled(@NonNull RecyclerView rv, int dx, int dy) {
+                if (dy <= 0 || loading || endReached) return;
+                if (lm.findLastVisibleItemPosition() >= adapter.getItemCount() - 4) loadPage(false);
+            }
+        });
 
         TabLayout.Tab tab = b.tabsType.getTabAt(selectedTab);
         if (tab != null) tab.select();
@@ -84,7 +98,7 @@ public class HomeFragment extends Fragment {
             @Override
             public void onTabSelected(TabLayout.Tab t) {
                 selectedTab = t.getPosition();
-                refresh();
+                reload();
             }
 
             @Override
@@ -98,9 +112,14 @@ public class HomeFragment extends Fragment {
 
         buildCategoryChips();
 
-        b.etSearch.addTextChangedListener(new Nav.AfterTextChanged(s -> refresh()));
+        b.etSearch.addTextChangedListener(new Nav.AfterTextChanged(s -> {
+            handler.removeCallbacks(debouncedRefresh);
+            handler.postDelayed(debouncedRefresh, SEARCH_DEBOUNCE_MS);
+        }));
         b.etSearch.setOnEditorActionListener((tv, actionId, event) -> {
             if (actionId == EditorInfo.IME_ACTION_SEARCH) {
+                handler.removeCallbacks(debouncedRefresh);
+                reload();
                 hideKeyboard();
                 return true;
             }
@@ -108,26 +127,30 @@ public class HomeFragment extends Fragment {
         });
 
         b.fabPublish.setOnClickListener(v -> openPublish());
-        b.empty.btnEmptyAction.setText(R.string.home_empty_action);
-        b.empty.btnEmptyAction.setOnClickListener(v -> openPublish());
-
-        if (!loadedOnce) {
-            // ÉTAPE 1 : chargement simulé. Étape 2 : requête Firestore paginée.
-            b.progress.setVisibility(View.VISIBLE);
-            b.list.setVisibility(View.GONE);
-            handler.postDelayed(() -> {
-                if (b == null) return;
-                loadedOnce = true;
-                b.progress.setVisibility(View.GONE);
-                refresh();
-            }, getResources().getInteger(R.integer.lf_fake_network_delay_ms));
-        }
     }
 
     @Override
     public void onResume() {
         super.onResume();
-        if (loadedOnce) refresh();
+        // Retour sur l'écran (publication, restitution…) : on recharge le fil et le profil.
+        reload();
+        ProfileRepository.get(requireContext()).loadMe(new ResultCallback<User>() {
+            @Override
+            public void onSuccess(User me) {
+                bindMe(me);
+            }
+
+            @Override
+            public void onError(String message) {
+                // Le fil reste utilisable sans le profil.
+            }
+        });
+    }
+
+    private void bindMe(@Nullable User me) {
+        if (b == null || me == null) return;
+        b.txtGreeting.setText(getString(R.string.home_greeting, me.firstName()));
+        UiUtils.bindAvatar(b.txtAvatar, b.imgAvatar, me);
     }
 
     private void buildCategoryChips() {
@@ -147,24 +170,71 @@ public class HomeFragment extends Fragment {
                 View checked = group.findViewById(checkedIds.get(0));
                 if (checked != null) selectedCategory = (Category) checked.getTag();
             }
-            refresh();
+            reload();
         });
     }
 
-    private void refresh() {
-        if (b == null || !loadedOnce) return;
+    private void reload() {
+        if (b == null) return;
+        loadedCount = 0;
+        endReached = false;
+        loadPage(true);
+    }
+
+    private void loadPage(boolean first) {
+        if (b == null) return;
+        final int myRequest = first ? ++requestId : requestId;
+        loading = true;
+        if (first && adapter.getItemCount() == 0) {
+            b.progress.setVisibility(View.VISIBLE);
+            b.empty.getRoot().setVisibility(View.GONE);
+        }
         AnnouncementType type = selectedTab == 1 ? AnnouncementType.LOST
                 : selectedTab == 2 ? AnnouncementType.FOUND : null;
-        List<Announcement> data = FakeRepository.get().feed(type, selectedCategory, Nav.text(b.etSearch));
-        adapter.submit(data);
-        boolean empty = data.isEmpty();
+        AnnouncementRepository.get(requireContext()).feed(type, selectedCategory, Nav.text(b.etSearch),
+                first ? 0 : loadedCount, new ResultCallback<List<Announcement>>() {
+                    @Override
+                    public void onSuccess(List<Announcement> page) {
+                        if (b == null || myRequest != requestId) return;
+                        loading = false;
+                        b.progress.setVisibility(View.GONE);
+                        if (first) adapter.submit(page);
+                        else adapter.append(page);
+                        loadedCount += page.size();
+                        endReached = page.size() < AnnouncementRepository.PAGE_SIZE;
+                        renderEmpty(null);
+                    }
+
+                    @Override
+                    public void onError(String message) {
+                        if (b == null || myRequest != requestId) return;
+                        loading = false;
+                        b.progress.setVisibility(View.GONE);
+                        if (adapter.getItemCount() == 0) renderEmpty(message);
+                        else Nav.main(HomeFragment.this).showMessage(message);
+                    }
+                });
+    }
+
+    /** État vide (aucun résultat) ou état d'erreur (avec « Réessayer »). */
+    private void renderEmpty(@Nullable String error) {
+        boolean empty = adapter.getItemCount() == 0;
         b.list.setVisibility(empty ? View.GONE : View.VISIBLE);
         b.empty.getRoot().setVisibility(empty ? View.VISIBLE : View.GONE);
-        if (empty) {
+        if (!empty) return;
+        b.empty.btnEmptyAction.setVisibility(View.VISIBLE);
+        if (error != null) {
+            b.empty.imgEmpty.setImageResource(R.drawable.ic_map_off);
+            b.empty.txtEmptyTitle.setText(R.string.state_error_title);
+            b.empty.txtEmptyBody.setText(error);
+            b.empty.btnEmptyAction.setText(R.string.action_retry);
+            b.empty.btnEmptyAction.setOnClickListener(v -> reload());
+        } else {
             b.empty.imgEmpty.setImageResource(R.drawable.ic_search_off);
             b.empty.txtEmptyTitle.setText(R.string.home_empty_title);
             b.empty.txtEmptyBody.setText(R.string.home_empty_body);
-            b.empty.btnEmptyAction.setVisibility(View.VISIBLE);
+            b.empty.btnEmptyAction.setText(R.string.home_empty_action);
+            b.empty.btnEmptyAction.setOnClickListener(v -> openPublish());
         }
     }
 

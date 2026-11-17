@@ -8,17 +8,18 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.lostfoundcampus.R;
 import com.example.lostfoundcampus.databinding.ItemPhotoPageBinding;
+import com.example.lostfoundcampus.ui.common.ImageLoader;
 
 import java.util.ArrayList;
 import java.util.List;
 
-/** Pages de la galerie du détail (ViewPager2). */
+/** Pages de la galerie du détail (ViewPager2), photos chargées depuis Supabase Storage par Glide. */
 class PhotoPagerAdapter extends RecyclerView.Adapter<PhotoPagerAdapter.Holder> {
 
-    private final List<Integer> photos = new ArrayList<>();
+    private final List<String> photos = new ArrayList<>();
     private String title = "";
 
-    void submit(List<Integer> data, String announcementTitle) {
+    void submit(List<String> data, String announcementTitle) {
         photos.clear();
         photos.addAll(data);
         title = announcementTitle;
@@ -33,7 +34,7 @@ class PhotoPagerAdapter extends RecyclerView.Adapter<PhotoPagerAdapter.Holder> {
 
     @Override
     public void onBindViewHolder(@NonNull Holder h, int position) {
-        h.b.imgPage.setImageResource(photos.get(position));
+        ImageLoader.announcementPhoto(h.b.imgPage, photos.get(position));
         h.b.imgPage.setContentDescription(h.b.getRoot().getContext()
                 .getString(R.string.cd_announcement_photo, title));
     }

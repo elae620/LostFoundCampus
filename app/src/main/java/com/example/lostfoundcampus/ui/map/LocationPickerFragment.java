@@ -6,13 +6,15 @@ import android.view.View;
 import android.view.ViewGroup;
 
 import androidx.annotation.NonNull;
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.Nullable;
+import androidx.annotation.StringRes;
 import androidx.fragment.app.Fragment;
 import androidx.navigation.NavBackStackEntry;
 import androidx.navigation.NavController;
 
 import com.example.lostfoundcampus.R;
-import com.example.lostfoundcampus.data.FakeRepository;
 import com.example.lostfoundcampus.data.model.CampusLocation;
 import com.example.lostfoundcampus.databinding.FragmentLocationPickerBinding;
 import com.example.lostfoundcampus.ui.common.Nav;
@@ -41,6 +43,9 @@ public class LocationPickerFragment extends Fragment {
     private Marker marker;
     private GeoPoint current;
 
+    private final ActivityResultLauncher<String[]> askLocation =
+            registerForActivityResult(new ActivityResultContracts.RequestMultiplePermissions(), result -> locate());
+
     public static Bundle args(@Nullable CampusLocation initial) {
         Bundle args = new Bundle();
         if (initial != null) args.putSerializable(ARG_INITIAL, initial);
@@ -63,7 +68,7 @@ public class LocationPickerFragment extends Fragment {
         if (getArguments() != null) {
             initial = (CampusLocation) getArguments().getSerializable(ARG_INITIAL);
         }
-        CampusLocation start = initial != null ? initial : FakeRepository.get().campusCenter();
+        CampusLocation start = initial != null ? initial : MapHelper.defaultCenter();
         current = MapHelper.toGeoPoint(start);
         if (savedInstanceState == null && initial != null && initial.hasPrecision()) {
             b.etPrecision.setText(initial.precision);
@@ -121,13 +126,40 @@ public class LocationPickerFragment extends Fragment {
         }
     }
 
-    /** ÉTAPE 1 : position d'exemple fixe. Étape 2 : FusedLocationProviderClient + permission. */
+    /** « Ma position » : demande la permission si besoin ; en cas de refus, le point se place à la main. */
     private void useMyPosition() {
-        CampusLocation here = FakeRepository.get().campusCenter();
-        moveMarker(MapHelper.toGeoPoint(here));
-        if (map != null) map.getController().animateTo(current);
-        Snackbar.make(b.getRoot(), R.string.picker_position_simulated, Snackbar.LENGTH_SHORT)
-                .setAnchorView(b.sheet).show();
+        if (LocationHelper.hasPermission(requireContext())) locate();
+        else askLocation.launch(LocationHelper.PERMISSIONS);
+    }
+
+    private void locate() {
+        if (b == null) return;
+        if (!LocationHelper.hasPermission(requireContext())) {
+            showHint(R.string.location_permission_denied);
+            return;
+        }
+        b.btnMyLocation.setEnabled(false);
+        showHint(R.string.location_searching);
+        LocationHelper.current(requireContext(), new LocationHelper.Callback() {
+            @Override
+            public void onLocation(@NonNull CampusLocation location) {
+                if (b == null) return;
+                b.btnMyLocation.setEnabled(true);
+                moveMarker(MapHelper.toGeoPoint(location));
+                if (map != null) map.getController().animateTo(current);
+            }
+
+            @Override
+            public void onUnavailable(@StringRes int reason) {
+                if (b == null) return;
+                b.btnMyLocation.setEnabled(true);
+                showHint(reason);
+            }
+        });
+    }
+
+    private void showHint(@StringRes int message) {
+        Snackbar.make(b.getRoot(), message, Snackbar.LENGTH_SHORT).setAnchorView(b.sheet).show();
     }
 
     private void confirm() {

@@ -34,6 +34,15 @@ public final class MapHelper {
 
     private static final String PREFS = "osmdroid";
 
+    /** Centre du campus, utilisé tant qu'aucun lieu n'est choisi. À adapter à votre campus. */
+    private static final double CAMPUS_LAT = 36.8368;
+    private static final double CAMPUS_LON = 10.1475;
+
+    @NonNull
+    public static CampusLocation defaultCenter() {
+        return new CampusLocation(CAMPUS_LAT, CAMPUS_LON, null);
+    }
+
     private MapHelper() {
     }
 

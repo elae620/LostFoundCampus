@@ -1,8 +1,10 @@
 package com.example.lostfoundcampus.ui.publish;
 
+import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.os.SystemClock;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -13,14 +15,19 @@ import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
 import androidx.lifecycle.ViewModelProvider;
 
+import com.bumptech.glide.Glide;
 import com.example.lostfoundcampus.R;
+import com.example.lostfoundcampus.data.model.ImageAnalysis;
 import com.example.lostfoundcampus.databinding.FragmentAiAnalysisBinding;
 import com.example.lostfoundcampus.ui.common.Nav;
 import com.example.lostfoundcampus.util.InsetsUtil;
 
+import java.util.ArrayList;
+import java.util.List;
+
 /**
- * Overlay d'analyse IA. ÉTAPE 1 : analyse simulée (~3 s) puis retour au formulaire
- * avec les suggestions. Étape 2 : étiquettes, texte et couleur via ML Kit.
+ * Overlay d'analyse : ML Kit (étiquettes, texte) et Palette (couleur) sur l'appareil, photo par photo.
+ * Les résultats reviennent au formulaire comme suggestions modifiables (RG03).
  */
 public class AiAnalysisFragment extends Fragment {
 
@@ -28,30 +35,34 @@ public class AiAnalysisFragment extends Fragment {
             R.string.ai_status_detect, R.string.ai_status_text,
             R.string.ai_status_color, R.string.ai_status_ready
     };
+    /** Durée minimale d'affichage, pour que l'overlay ne clignote pas sur un téléphone rapide. */
+    private static final long MIN_DISPLAY_MS = 1500;
 
     private FragmentAiAnalysisBinding b;
     private PublishViewModel vm;
+    private PhotoAnalyzer analyzer;
     private final Handler handler = new Handler(Looper.getMainLooper());
+    private final List<Uri> queue = new ArrayList<>();
     private int statusIndex;
+    private long startedAt;
+    private boolean cancelled;
+    private boolean anySuccess;
 
     private final Runnable nextStatus = new Runnable() {
         @Override
         public void run() {
             if (b == null) return;
-            statusIndex = Math.min(statusIndex + 1, STATUS_MESSAGES.length - 1);
+            statusIndex = (statusIndex + 1) % STATUS_MESSAGES.length;
             b.txtStatus.setText(STATUS_MESSAGES[statusIndex]);
-            if (statusIndex < STATUS_MESSAGES.length - 1) {
-                handler.postDelayed(this, getResources().getInteger(R.integer.ai_status_interval_ms));
-            }
+            handler.postDelayed(this, getResources().getInteger(R.integer.ai_status_interval_ms));
         }
     };
-
-    private final Runnable finish = this::onAnalysisDone;
 
     @Override
     public void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         vm = new ViewModelProvider(requireActivity()).get(PublishViewModel.class);
+        analyzer = new PhotoAnalyzer(requireContext());
     }
 
     @Override
@@ -65,12 +76,14 @@ public class AiAnalysisFragment extends Fragment {
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         InsetsUtil.applyBottom(b.panel, false);
 
-        int photo = vm.analysisSource();
-        if (photo == 0) {
+        queue.clear();
+        queue.addAll(vm.analysisTargets());
+        Uri preview = vm.previewSource();
+        if (queue.isEmpty() || preview == null) {
             Nav.of(this).popBackStack();
             return;
         }
-        b.imgPhoto.setImageResource(photo);
+        Glide.with(this).load(preview).centerCrop().into(b.imgPhoto);
         b.btnCancel.setOnClickListener(v -> cancel());
         requireActivity().getOnBackPressedDispatcher().addCallback(getViewLifecycleOwner(),
                 new OnBackPressedCallback(true) {
@@ -85,21 +98,54 @@ public class AiAnalysisFragment extends Fragment {
             b.txtStatus.setText(R.string.ai_status_static);
         } else {
             statusIndex = 0;
-            b.txtStatus.setText(STATUS_MESSAGES[0]);
+            b.txtStatus.setText(R.string.ai_status_prepare);
             handler.postDelayed(nextStatus, getResources().getInteger(R.integer.ai_status_interval_ms));
         }
-        handler.postDelayed(finish, getResources().getInteger(R.integer.ai_analysis_duration_ms));
+        startedAt = SystemClock.elapsedRealtime();
+        cancelled = false;
+        anySuccess = false;
+        analyzeNext();
     }
 
-    private void onAnalysisDone() {
-        if (b == null) return;
-        int photo = vm.analysisSource();
-        vm.applyAnalysis(SimulatedMedia.analyze(photo), getResources().getInteger(R.integer.lf_max_photos));
-        Nav.of(this).popBackStack(R.id.publishFragment, false);
+    private void analyzeNext() {
+        if (cancelled || b == null) return;
+        if (queue.isEmpty()) {
+            finishWhenReady();
+            return;
+        }
+        Uri uri = queue.remove(0);
+        analyzer.analyze(uri, new PhotoAnalyzer.Callback() {
+            @Override
+            public void onResult(@NonNull ImageAnalysis analysis) {
+                if (cancelled) return;
+                anySuccess = true;
+                vm.attachAnalysis(uri, analysis, getResources().getInteger(R.integer.lf_max_photos));
+                analyzeNext();
+            }
+
+            @Override
+            public void onError() {
+                if (cancelled) return;
+                // La photo est gardée sans analyse : l'utilisateur remplit les champs lui-même.
+                vm.attachAnalysis(uri, null, getResources().getInteger(R.integer.lf_max_photos));
+                analyzeNext();
+            }
+        });
+    }
+
+    private void finishWhenReady() {
+        long elapsed = SystemClock.elapsedRealtime() - startedAt;
+        handler.postDelayed(() -> {
+            if (cancelled || b == null) return;
+            vm.applyBestSuggestions();
+            if (!anySuccess) Nav.main(this).showMessage(R.string.ai_error);
+            Nav.of(this).popBackStack(R.id.publishFragment, false);
+        }, Math.max(0, MIN_DISPLAY_MS - elapsed));
     }
 
     /** Annuler arrête l'analyse et revient à l'écran précédent (aperçu ou formulaire), sans rien appliquer. */
     private void cancel() {
+        cancelled = true;
         handler.removeCallbacksAndMessages(null);
         Nav.of(this).popBackStack();
     }
@@ -107,8 +153,15 @@ public class AiAnalysisFragment extends Fragment {
     @Override
     public void onDestroyView() {
         super.onDestroyView();
+        cancelled = true;
         handler.removeCallbacksAndMessages(null);
         if (b != null) b.aiScan.stop();
         b = null;
+    }
+
+    @Override
+    public void onDestroy() {
+        super.onDestroy();
+        analyzer.close();
     }
 }

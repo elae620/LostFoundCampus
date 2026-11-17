@@ -53,7 +53,8 @@ public class MiniMapController {
                      @Nullable String labelOverride) {
         int zoom = b.getRoot().getResources().getInteger(R.integer.lf_map_zoom_preview);
         if (location == null) {
-            b.txtLocation.setText(R.string.map_tap_to_place);
+            if (labelOverride != null) b.txtLocation.setText(labelOverride);
+            else b.txtLocation.setText(R.string.map_tap_to_place);
             if (map != null) {
                 MapHelper.center(map, fallbackCenter, zoom);
                 if (marker != null) {
