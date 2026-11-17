@@ -12,6 +12,7 @@ import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.annotation.StringRes;
+import androidx.core.os.BundleCompat;
 import androidx.fragment.app.Fragment;
 
 import com.example.lostfoundcampus.R;
@@ -61,7 +62,7 @@ public class EditProfileFragment extends Fragment {
     public void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         app = requireContext().getApplicationContext();
-        if (savedInstanceState != null) pendingPhoto = savedInstanceState.getParcelable(STATE_PHOTO);
+        if (savedInstanceState != null) pendingPhoto = BundleCompat.getParcelable(savedInstanceState, STATE_PHOTO, Uri.class);
     }
 
     @Override

@@ -10,6 +10,7 @@ import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.Nullable;
 import androidx.annotation.StringRes;
+import androidx.core.os.BundleCompat;
 import androidx.fragment.app.Fragment;
 import androidx.navigation.NavBackStackEntry;
 import androidx.navigation.NavController;
@@ -66,7 +67,7 @@ public class LocationPickerFragment extends Fragment {
 
         CampusLocation initial = null;
         if (getArguments() != null) {
-            initial = (CampusLocation) getArguments().getSerializable(ARG_INITIAL);
+            initial = BundleCompat.getSerializable(getArguments(), ARG_INITIAL, CampusLocation.class);
         }
         CampusLocation start = initial != null ? initial : MapHelper.defaultCenter();
         current = MapHelper.toGeoPoint(start);
