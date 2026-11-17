@@ -10,11 +10,7 @@ import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.lostfoundcampus.R;
-import com.example.lostfoundcampus.data.FakeRepository;
-import com.example.lostfoundcampus.data.model.Announcement;
-import com.example.lostfoundcampus.data.model.Conversation;
-import com.example.lostfoundcampus.data.model.Message;
-import com.example.lostfoundcampus.data.model.User;
+import com.example.lostfoundcampus.data.model.ConversationSummary;
 import com.example.lostfoundcampus.databinding.ItemConversationBinding;
 import com.example.lostfoundcampus.ui.common.UiUtils;
 import com.example.lostfoundcampus.util.DateUtil;
@@ -22,20 +18,21 @@ import com.example.lostfoundcampus.util.DateUtil;
 import java.util.ArrayList;
 import java.util.List;
 
+/** Lignes de l'écran Messages (résultat de la fonction SQL my_conversations). */
 class ConversationAdapter extends RecyclerView.Adapter<ConversationAdapter.Holder> {
 
     interface OnClick {
-        void onConversation(Conversation c);
+        void onConversation(ConversationSummary c);
     }
 
-    private final List<Conversation> items = new ArrayList<>();
+    private final List<ConversationSummary> items = new ArrayList<>();
     private final OnClick onClick;
 
     ConversationAdapter(OnClick onClick) {
         this.onClick = onClick;
     }
 
-    void submit(List<Conversation> data) {
+    void submit(List<ConversationSummary> data) {
         items.clear();
         items.addAll(data);
         notifyDataSetChanged();
@@ -49,32 +46,25 @@ class ConversationAdapter extends RecyclerView.Adapter<ConversationAdapter.Holde
 
     @Override
     public void onBindViewHolder(@NonNull Holder h, int position) {
-        Conversation conv = items.get(position);
+        ConversationSummary conv = items.get(position);
         Context c = h.b.getRoot().getContext();
-        FakeRepository repo = FakeRepository.get();
-        String me = repo.currentUser().uid;
-        User other = repo.user(conv.otherParticipant(me));
-        Announcement linked = repo.announcement(conv.relatedAnnouncementId);
-        Message last = conv.lastMessage();
-        boolean unread = conv.hasUnreadFor(me);
+        boolean unread = conv.unreadCount > 0;
 
-        if (other != null) {
-            UiUtils.bindInitialsAvatar(h.b.txtAvatar, other);
-            h.b.txtName.setText(other.fullName);
-        }
+        UiUtils.bindInitialsAvatar(h.b.txtAvatar, conv.other);
+        h.b.txtName.setText(conv.other.fullName);
         h.b.txtName.setTypeface(null, unread ? Typeface.BOLD : Typeface.NORMAL);
-        h.b.txtTime.setText(last == null ? "" : DateUtil.conversationTime(c, last.sentAt));
-        h.b.txtPreview.setText(last == null ? c.getString(R.string.messages_no_message_yet) : last.text);
+        h.b.txtTime.setText(conv.hasMessages() ? DateUtil.conversationTime(c, conv.lastMessageAt) : "");
+        h.b.txtPreview.setText(conv.hasMessages() ? conv.lastMessagePreview : c.getString(R.string.messages_no_message_yet));
         h.b.unreadDot.setVisibility(unread ? View.VISIBLE : View.INVISIBLE);
-        h.b.txtLinked.setText(linked == null ? "" : linked.title);
-        h.b.txtLinked.setVisibility(linked == null ? View.GONE : View.VISIBLE);
+        boolean linked = conv.announcementTitle != null;
+        h.b.txtLinked.setText(linked ? conv.announcementTitle : "");
+        h.b.txtLinked.setVisibility(linked ? View.VISIBLE : View.GONE);
 
         // Une seule annonce vocale claire pour la ligne entière.
-        StringBuilder cd = new StringBuilder();
-        if (other != null) cd.append(other.fullName).append(". ");
+        StringBuilder cd = new StringBuilder(conv.other.fullName).append(". ");
         if (unread) cd.append(c.getString(R.string.cd_unread)).append(". ");
         cd.append(h.b.txtPreview.getText());
-        if (linked != null) cd.append(". ").append(linked.title);
+        if (linked) cd.append(". ").append(conv.announcementTitle);
         h.b.getRoot().setContentDescription(cd);
         h.b.getRoot().setOnClickListener(v -> onClick.onConversation(conv));
     }

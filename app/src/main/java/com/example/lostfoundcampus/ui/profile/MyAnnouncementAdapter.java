@@ -14,6 +14,7 @@ import com.example.lostfoundcampus.data.model.Announcement;
 import com.example.lostfoundcampus.data.model.AnnouncementStatus;
 import com.example.lostfoundcampus.data.model.AnnouncementType;
 import com.example.lostfoundcampus.databinding.ItemMyAnnouncementBinding;
+import com.example.lostfoundcampus.ui.common.ImageLoader;
 import com.example.lostfoundcampus.ui.common.UiUtils;
 import com.example.lostfoundcampus.util.DateUtil;
 
@@ -53,7 +54,7 @@ class MyAnnouncementAdapter extends RecyclerView.Adapter<MyAnnouncementAdapter.H
     public void onBindViewHolder(@NonNull Holder h, int position) {
         Announcement a = items.get(position);
         Context c = h.b.getRoot().getContext();
-        h.b.imgPhoto.setImageResource(a.coverPhoto());
+        ImageLoader.announcementPhoto(h.b.imgPhoto, a.coverPath());
         h.b.imgPhoto.setContentDescription(c.getString(R.string.cd_announcement_photo, a.title));
         h.b.txtTitle.setText(a.title);
         @StringRes int metaRes;

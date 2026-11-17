@@ -1,47 +1,67 @@
 package com.example.lostfoundcampus.ui.profile;
 
+import android.net.Uri;
 import android.os.Bundle;
-import android.os.Handler;
-import android.os.Looper;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 
-import androidx.annotation.DrawableRes;
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.PickVisualMediaRequest;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.annotation.StringRes;
 import androidx.fragment.app.Fragment;
 
 import com.example.lostfoundcampus.R;
-import com.example.lostfoundcampus.data.FakeRepository;
+import com.example.lostfoundcampus.data.AuthRepository;
+import com.example.lostfoundcampus.data.ProfileRepository;
+import com.example.lostfoundcampus.data.ResultCallback;
+import com.example.lostfoundcampus.data.StorageRepository;
 import com.example.lostfoundcampus.data.model.User;
 import com.example.lostfoundcampus.databinding.FragmentEditProfileBinding;
+import com.example.lostfoundcampus.ui.common.ImageLoader;
 import com.example.lostfoundcampus.ui.common.Nav;
 import com.example.lostfoundcampus.ui.common.UiUtils;
+import com.example.lostfoundcampus.util.AppExecutors;
 import com.example.lostfoundcampus.util.InsetsUtil;
+import com.example.lostfoundcampus.util.PhotoCompressor;
 import com.example.lostfoundcampus.util.Validators;
 import com.google.android.material.snackbar.Snackbar;
 import com.google.android.material.textfield.TextInputLayout;
 
 /**
  * Modifier mon profil (accessible uniquement depuis son propre profil) :
- * nom, photo (galerie) et mot de passe (actuel, nouveau, confirmation).
+ * nom, photo (Photo Picker, envoyée dans le bucket « avatars ») et mot de passe
+ * (l'actuel est vérifié par une nouvelle connexion avant l'enregistrement du nouveau).
  */
 public class EditProfileFragment extends Fragment {
 
     private static final String STATE_PHOTO = "pending_photo";
 
     private FragmentEditProfileBinding b;
-    private final Handler handler = new Handler(Looper.getMainLooper());
-    @DrawableRes
-    private int pendingPhoto;
+    @Nullable
+    private User me;
+    /** Photo choisie, pas encore enregistrée. */
+    @Nullable
+    private Uri pendingPhoto;
+    /** Contexte de l'application : utilisable dans les rappels même si l'écran est fermé entre-temps. */
+    private android.content.Context app;
+
+    private final ActivityResultLauncher<PickVisualMediaRequest> pickPhoto =
+            registerForActivityResult(new ActivityResultContracts.PickVisualMedia(), uri -> {
+                if (uri == null || b == null) return;
+                pendingPhoto = uri;
+                renderAvatar();
+                snack(R.string.edit_profile_photo_changed);
+            });
 
     @Override
     public void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        pendingPhoto = savedInstanceState != null
-                ? savedInstanceState.getInt(STATE_PHOTO)
-                : FakeRepository.get().currentUser().photoRes;
+        app = requireContext().getApplicationContext();
+        if (savedInstanceState != null) pendingPhoto = savedInstanceState.getParcelable(STATE_PHOTO);
     }
 
     @Override
@@ -57,17 +77,26 @@ public class EditProfileFragment extends Fragment {
         b.header.txtTitle.setText(R.string.edit_profile_title);
         b.header.btnBack.setOnClickListener(v -> Nav.back(this));
 
-        User me = FakeRepository.get().currentUser();
-        if (savedInstanceState == null) b.etName.setText(me.fullName);
-        b.txtEmail.setText(me.universityEmail);
-        renderAvatar();
+        me = ProfileRepository.get(requireContext()).cachedMe();
+        if (me != null) bindMe(me, savedInstanceState == null);
+        else b.txtEmail.setText(AuthRepository.get(requireContext()).currentEmail());
+        ProfileRepository.get(requireContext()).loadMe(new ResultCallback<User>() {
+            @Override
+            public void onSuccess(User user) {
+                boolean fillName = me == null && savedInstanceState == null;
+                me = user;
+                bindMe(user, fillName);
+            }
 
-        b.btnChangePhoto.setOnClickListener(v -> {
-            // ÉTAPE 1 : choix galerie simulé. Étape 2 : PickVisualMedia + envoi Storage.
-            pendingPhoto = R.drawable.sample_avatar;
-            renderAvatar();
-            snack(R.string.edit_profile_photo_changed);
+            @Override
+            public void onError(String message) {
+                if (b != null && me == null) snack(message);
+            }
         });
+
+        b.btnChangePhoto.setOnClickListener(v -> pickPhoto.launch(new PickVisualMediaRequest.Builder()
+                .setMediaType(ActivityResultContracts.PickVisualMedia.ImageOnly.INSTANCE)
+                .build()));
         b.btnSaveProfile.setOnClickListener(v -> saveProfile());
         b.btnChangePassword.setOnClickListener(v -> changePassword());
 
@@ -76,18 +105,25 @@ public class EditProfileFragment extends Fragment {
         }
     }
 
+    private void bindMe(User user, boolean fillName) {
+        if (b == null) return;
+        if (fillName) b.etName.setText(user.fullName);
+        b.txtEmail.setText(user.universityEmail);
+        renderAvatar();
+    }
+
     private void renderAvatar() {
-        User me = FakeRepository.get().currentUser();
-        if (pendingPhoto != 0) {
-            b.avatar.imgPhoto.setImageResource(pendingPhoto);
+        if (b == null) return;
+        if (pendingPhoto != null) {
             b.avatar.imgPhoto.setVisibility(View.VISIBLE);
             b.avatar.txtInitials.setVisibility(View.INVISIBLE);
-        } else {
-            b.avatar.imgPhoto.setVisibility(View.GONE);
-            b.avatar.txtInitials.setVisibility(View.VISIBLE);
-            b.avatar.txtInitials.setText(UiUtils.initials(me.fullName));
+            ImageLoader.localAvatar(b.avatar.imgPhoto, pendingPhoto);
+        } else if (me != null) {
+            UiUtils.bindAvatar(b.avatar.txtInitials, b.avatar.imgPhoto, me);
         }
     }
+
+    // ------------------------------------------------------------------ Nom et photo
 
     private void saveProfile() {
         String name = Nav.text(b.etName);
@@ -96,18 +132,82 @@ public class EditProfileFragment extends Fragment {
             b.tilName.requestFocus();
             return;
         }
-        setBusy(b.btnSaveProfile, true);
-        // ÉTAPE 1 : mise à jour locale. Étape 2 : Firestore (users/{uid}) + Storage pour la photo.
-        handler.postDelayed(() -> {
-            if (b == null) return;
-            User me = FakeRepository.get().currentUser();
-            me.fullName = name;
-            me.photoRes = pendingPhoto;
-            setBusy(b.btnSaveProfile, false);
-            renderAvatar();
-            snack(R.string.edit_profile_saved);
-        }, getResources().getInteger(R.integer.lf_fake_network_delay_ms));
+        String uid = AuthRepository.get(requireContext()).currentUserId();
+        if (uid == null) {
+            snack(R.string.error_session_expired);
+            return;
+        }
+        b.btnSaveProfile.setEnabled(false);
+        b.btnSaveProfile.setText(R.string.edit_profile_saving);
+        if (pendingPhoto == null) {
+            saveRow(name, null, false);
+            return;
+        }
+        Uri photo = pendingPhoto;
+        AppExecutors.io(() -> {
+            byte[] jpeg;
+            try {
+                jpeg = PhotoCompressor.compress(app, photo,
+                        PhotoCompressor.AVATAR_MAX_SIDE, PhotoCompressor.AVATAR_MAX_BYTES);
+            } catch (Exception e) {
+                AppExecutors.main(() -> failSave(app.getString(R.string.edit_profile_photo_error)));
+                return;
+            }
+            // Nom de fichier unique : l'ancienne image en cache (Glide) n'est jamais réaffichée.
+            String path = uid + "/avatar-" + System.currentTimeMillis() + ".jpg";
+            AppExecutors.main(() -> StorageRepository.get(app).upload(
+                    StorageRepository.BUCKET_AVATARS, path, jpeg, false, new ResultCallback<String>() {
+                        @Override
+                        public void onSuccess(String uploaded) {
+                            saveRow(name, uploaded, true);
+                        }
+
+                        @Override
+                        public void onError(String message) {
+                            failSave(message);
+                        }
+                    }));
+        });
     }
+
+    private void saveRow(String name, @Nullable String photoPath, boolean setPhoto) {
+        final String previous = me == null ? null : me.photoPath;
+        ProfileRepository.get(app).updateMe(name, photoPath, setPhoto, new ResultCallback<User>() {
+            @Override
+            public void onSuccess(User user) {
+                if (setPhoto && previous != null && !previous.equals(photoPath)) {
+                    StorageRepository.get(app).deleteQuietly(StorageRepository.BUCKET_AVATARS, previous);
+                }
+                if (b == null) return;
+                me = user;
+                pendingPhoto = null;
+                resetSaveButton();
+                renderAvatar();
+                snack(R.string.edit_profile_saved);
+            }
+
+            @Override
+            public void onError(String message) {
+                if (setPhoto && photoPath != null) {
+                    StorageRepository.get(app).deleteQuietly(StorageRepository.BUCKET_AVATARS, photoPath);
+                }
+                failSave(message);
+            }
+        });
+    }
+
+    private void failSave(String message) {
+        if (b == null) return;
+        resetSaveButton();
+        snack(message);
+    }
+
+    private void resetSaveButton() {
+        b.btnSaveProfile.setEnabled(true);
+        b.btnSaveProfile.setText(R.string.edit_profile_save);
+    }
+
+    // ------------------------------------------------------------------ Mot de passe
 
     private void changePassword() {
         String current = raw(b.tilCurrent);
@@ -117,10 +217,6 @@ public class EditProfileFragment extends Fragment {
 
         if (current.isEmpty()) {
             b.tilCurrent.setError(getString(R.string.error_password_current_required));
-            firstError = b.tilCurrent;
-        } else if (!FakeRepository.get().checkPassword(current)) {
-            // Étape 2 : ré-authentification Firebase (EmailAuthProvider) avant updatePassword.
-            b.tilCurrent.setError(getString(R.string.error_password_current));
             firstError = b.tilCurrent;
         }
         if (!Validators.isPasswordLongEnough(requireContext(), next)) {
@@ -136,16 +232,30 @@ public class EditProfileFragment extends Fragment {
             return;
         }
 
-        setBusy(b.btnChangePassword, true);
-        handler.postDelayed(() -> {
-            if (b == null) return;
-            FakeRepository.get().changePassword(next);
-            b.etCurrent.setText("");
-            b.etNew.setText("");
-            b.etConfirm.setText("");
-            setBusy(b.btnChangePassword, false);
-            snack(R.string.edit_profile_password_saved);
-        }, getResources().getInteger(R.integer.lf_fake_network_delay_ms));
+        b.btnChangePassword.setEnabled(false);
+        AuthRepository.get(requireContext()).changePassword(current, next, new ResultCallback<Void>() {
+            @Override
+            public void onSuccess(Void value) {
+                if (b == null) return;
+                b.etCurrent.setText("");
+                b.etNew.setText("");
+                b.etConfirm.setText("");
+                b.btnChangePassword.setEnabled(true);
+                snack(R.string.edit_profile_password_saved);
+            }
+
+            @Override
+            public void onError(String message) {
+                if (b == null) return;
+                b.btnChangePassword.setEnabled(true);
+                if (message.equals(getString(R.string.error_password_current))) {
+                    b.tilCurrent.setError(message);
+                    b.tilCurrent.requestFocus();
+                } else {
+                    snack(message);
+                }
+            }
+        });
     }
 
     private static String raw(TextInputLayout til) {
@@ -153,24 +263,24 @@ public class EditProfileFragment extends Fragment {
                 ? "" : til.getEditText().getText().toString();
     }
 
-    private void setBusy(View button, boolean busy) {
-        button.setEnabled(!busy);
+    private void snack(@StringRes int message) {
+        snack(getString(message));
     }
 
-    private void snack(int message) {
+    private void snack(String message) {
+        if (b == null) return;
         Snackbar.make(b.getRoot(), message, Snackbar.LENGTH_SHORT).show();
     }
 
     @Override
     public void onSaveInstanceState(@NonNull Bundle outState) {
         super.onSaveInstanceState(outState);
-        outState.putInt(STATE_PHOTO, pendingPhoto);
+        outState.putParcelable(STATE_PHOTO, pendingPhoto);
     }
 
     @Override
     public void onDestroyView() {
         super.onDestroyView();
-        handler.removeCallbacksAndMessages(null);
         b = null;
     }
 }

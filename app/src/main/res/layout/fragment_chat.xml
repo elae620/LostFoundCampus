@@ -59,7 +59,7 @@
                 android:id="@+id/txtStatus"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="@string/chat_status_recent"
+                android:visibility="gone"
                 android:textAppearance="@style/TextAppearance.LF.Caption"
                 android:textColor="@color/lf_mauve_status" />
         </LinearLayout>

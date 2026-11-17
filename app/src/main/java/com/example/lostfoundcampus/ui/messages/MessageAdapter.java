@@ -19,23 +19,32 @@ import com.example.lostfoundcampus.util.DateUtil;
 
 import java.util.List;
 
-/** Bulles envoyées / reçues. « Envoi en cours… » sur un message en attente, « Envoyé · 10:43 » en fin de série. */
+/**
+ * Bulles envoyées / reçues. « Envoi en cours… » tant que le serveur n'a pas confirmé,
+ * « Échec de l'envoi » (touchez pour réessayer), « Envoyé · 10:43 » en fin de série.
+ */
 class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
+
+    interface OnRetry {
+        void onRetry(Message message);
+    }
 
     private static final int TYPE_SENT = 0;
     private static final int TYPE_RECEIVED = 1;
 
     private final List<Message> messages;
     private final String me;
+    private final OnRetry onRetry;
 
-    MessageAdapter(List<Message> messages, String me) {
+    MessageAdapter(List<Message> messages, String me, OnRetry onRetry) {
         this.messages = messages;
         this.me = me;
+        this.onRetry = onRetry;
     }
 
     @Override
     public int getItemViewType(int position) {
-        return messages.get(position).senderId.equals(me) ? TYPE_SENT : TYPE_RECEIVED;
+        return me.equals(messages.get(position).senderId) ? TYPE_SENT : TYPE_RECEIVED;
     }
 
     @Override
@@ -60,19 +69,35 @@ class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
             ItemMessageSentBinding b = ((SentHolder) holder).b;
             Context c = b.getRoot().getContext();
             b.txtBubble.setText(m.text);
-            boolean sending = m.state == Message.State.SENDING;
+            boolean pending = m.state != Message.State.SENT;
             ViewCompat.setBackgroundTintList(b.txtBubble, ColorStateList.valueOf(ContextCompat.getColor(c,
-                    sending ? R.color.lf_violet_400 : R.color.lf_violet_600)));
+                    pending ? R.color.lf_violet_400 : R.color.lf_violet_600)));
             boolean endOfRun = position == messages.size() - 1
-                    || !messages.get(position + 1).senderId.equals(me);
-            if (sending) {
+                    || !me.equals(messages.get(position + 1).senderId);
+            b.txtMeta.setTextColor(ContextCompat.getColor(c,
+                    m.state == Message.State.FAILED ? R.color.lf_error : R.color.lf_ink_secondary));
+            if (m.state == Message.State.SENDING) {
                 b.txtMeta.setText(R.string.chat_sending);
+                b.txtMeta.setVisibility(View.VISIBLE);
+            } else if (m.state == Message.State.FAILED) {
+                b.txtMeta.setText(R.string.chat_failed);
                 b.txtMeta.setVisibility(View.VISIBLE);
             } else if (endOfRun) {
                 b.txtMeta.setText(c.getString(R.string.chat_sent_at, DateUtil.time(m.sentAt)));
                 b.txtMeta.setVisibility(View.VISIBLE);
             } else {
                 b.txtMeta.setVisibility(View.GONE);
+            }
+            if (m.state == Message.State.FAILED) {
+                b.getRoot().setOnClickListener(v -> onRetry.onRetry(m));
+                b.getRoot().setContentDescription(m.text + ". " + c.getString(R.string.chat_failed));
+                ViewCompat.replaceAccessibilityAction(b.getRoot(),
+                        androidx.core.view.accessibility.AccessibilityNodeInfoCompat.AccessibilityActionCompat.ACTION_CLICK,
+                        c.getString(R.string.cd_retry_message), null);
+            } else {
+                b.getRoot().setOnClickListener(null);
+                b.getRoot().setClickable(false);
+                b.getRoot().setContentDescription(null);
             }
         } else {
             ((ReceivedHolder) holder).b.txtBubble.setText(m.text);

@@ -12,9 +12,8 @@ import com.example.lostfoundcampus.ui.map.MapHelper;
 import com.example.lostfoundcampus.util.DateUtil;
 
 /**
- * Message d'introduction proposé en brouillon au début d'une conversation.
- * ÉTAPE 1 : modèle de texte local (strings.xml) rempli avec les détails de l'annonce.
- * Étape 2 : Gemini via Firebase AI Logic, avec repli sur ce modèle.
+ * Message d'introduction proposé en brouillon au début d'une conversation :
+ * modèle de texte local (strings.xml) rempli avec les détails de l'annonce. Jamais envoyé sans action.
  */
 final class IntroMessageTemplate {
 

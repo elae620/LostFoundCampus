@@ -12,6 +12,7 @@ import com.example.lostfoundcampus.R;
 import com.example.lostfoundcampus.data.model.Announcement;
 import com.example.lostfoundcampus.data.model.AnnouncementType;
 import com.example.lostfoundcampus.databinding.ItemMatchBinding;
+import com.example.lostfoundcampus.ui.common.ImageLoader;
 import com.example.lostfoundcampus.ui.map.MapHelper;
 import com.example.lostfoundcampus.util.DateUtil;
 
@@ -33,7 +34,7 @@ class MatchAdapter extends RecyclerView.Adapter<MatchAdapter.Holder> {
     interface Listener {
         void onView(Announcement a);
 
-        void onContact(Announcement a);
+        void onContact(Announcement a, android.view.View button);
     }
 
     private final List<Item> items = new ArrayList<>();
@@ -60,7 +61,7 @@ class MatchAdapter extends RecyclerView.Adapter<MatchAdapter.Holder> {
         Item item = items.get(position);
         Announcement a = item.announcement;
         Context c = h.b.getRoot().getContext();
-        h.b.imgPhoto.setImageResource(a.coverPhoto());
+        ImageLoader.announcementPhoto(h.b.imgPhoto, a.coverPath());
         h.b.imgPhoto.setContentDescription(c.getString(R.string.cd_announcement_photo, a.title));
         String kind = c.getString(a.type == AnnouncementType.FOUND ? R.string.matches_object_found : R.string.matches_object_lost);
         h.b.txtKind.setText(c.getString(R.string.matches_other_type, kind, c.getString(a.type.labelRes)));
@@ -74,7 +75,7 @@ class MatchAdapter extends RecyclerView.Adapter<MatchAdapter.Holder> {
         h.b.progressScore.setIndicatorColor(ContextCompat.getColor(c,
                 item.score >= strong ? R.color.lf_violet_600 : R.color.lf_mauve));
         h.b.btnView.setOnClickListener(v -> listener.onView(a));
-        h.b.btnContact.setOnClickListener(v -> listener.onContact(a));
+        h.b.btnContact.setOnClickListener(v -> listener.onContact(a, v));
     }
 
     @Override
