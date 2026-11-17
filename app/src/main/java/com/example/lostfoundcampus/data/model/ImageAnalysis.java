@@ -2,32 +2,36 @@ package com.example.lostfoundcampus.data.model;
 
 import androidx.annotation.Nullable;
 
-/**
- * Résultat d'analyse d'une photo : étiquette, texte visible et couleur dominante.
- * Étape 1 : valeurs simulées. Étape 2 : ML Kit.
- */
+import java.util.ArrayList;
+import java.util.List;
+
+/** Analyse ML Kit d'une photo : étiquettes, texte visible, couleur dominante, et suggestions déduites. */
 public class ImageAnalysis {
 
-    public final String label;
+    /** Étiquettes ML Kit normalisées (minuscules, en anglais), utilisées pour les correspondances. */
+    public final List<String> labels = new ArrayList<>();
+    /** Étiquette principale, traduite pour l'affichage. */
+    public final String displayLabel;
     public final int confidence;
+    public final List<String> detectedTexts = new ArrayList<>();
     @Nullable
-    public final String detectedText;
     public final ColorSwatch dominantColor;
     public final Category suggestedCategory;
     public final String suggestedTitle;
-    public boolean userConfirmed;
 
-    public ImageAnalysis(String label, int confidence, @Nullable String detectedText,
-                         ColorSwatch dominantColor, Category suggestedCategory, String suggestedTitle) {
-        this.label = label;
+    public ImageAnalysis(List<String> labels, String displayLabel, int confidence, List<String> detectedTexts,
+                         @Nullable ColorSwatch dominantColor, Category suggestedCategory, String suggestedTitle) {
+        if (labels != null) this.labels.addAll(labels);
+        this.displayLabel = displayLabel;
         this.confidence = confidence;
-        this.detectedText = detectedText;
+        if (detectedTexts != null) this.detectedTexts.addAll(detectedTexts);
         this.dominantColor = dominantColor;
         this.suggestedCategory = suggestedCategory;
         this.suggestedTitle = suggestedTitle;
     }
 
-    public boolean hasText() {
-        return detectedText != null && !detectedText.isEmpty();
+    @Nullable
+    public String mainText() {
+        return detectedTexts.isEmpty() ? null : detectedTexts.get(0);
     }
 }

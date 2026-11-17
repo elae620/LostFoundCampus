@@ -1,8 +1,6 @@
 package com.example.lostfoundcampus.ui.auth;
 
 import android.os.Bundle;
-import android.os.Handler;
-import android.os.Looper;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -13,9 +11,10 @@ import androidx.annotation.Nullable;
 import androidx.annotation.StringRes;
 import androidx.fragment.app.Fragment;
 
-import com.example.lostfoundcampus.BuildConfig;
 import com.example.lostfoundcampus.R;
-import com.example.lostfoundcampus.data.FakeRepository;
+import com.example.lostfoundcampus.data.AuthRepository;
+import com.example.lostfoundcampus.data.ResultCallback;
+import com.example.lostfoundcampus.data.remote.SupabaseClient;
 import com.example.lostfoundcampus.databinding.FragmentLoginBinding;
 import com.example.lostfoundcampus.ui.common.Nav;
 import com.example.lostfoundcampus.util.InsetsUtil;
@@ -24,7 +23,6 @@ import com.example.lostfoundcampus.util.Validators;
 public class LoginFragment extends Fragment {
 
     private FragmentLoginBinding b;
-    private final Handler handler = new Handler(Looper.getMainLooper());
 
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container,
@@ -37,9 +35,9 @@ public class LoginFragment extends Fragment {
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         InsetsUtil.applyPadding(b.scroll, true, true, true);
 
-        if (BuildConfig.DEBUG && savedInstanceState == null) {
-            // Démo étape 1 : e-mail prérempli (mot de passe de démo : voir le bilan d'étape).
-            b.etEmail.setText(FakeRepository.demoEmail());
+        if (!SupabaseClient.isConfigured()) {
+            showError(R.string.error_config_missing);
+            b.btnLogin.setEnabled(false);
         }
 
         b.btnLogin.setOnClickListener(v -> attemptLogin());
@@ -70,19 +68,28 @@ public class LoginFragment extends Fragment {
             return;
         }
         setLoading(true);
-        // ÉTAPE 1 : délai réseau simulé. Étape 2 : FirebaseAuth.signInWithEmailAndPassword.
-        handler.postDelayed(() -> {
-            if (b == null) return;
-            setLoading(false);
-            if (FakeRepository.get().signIn(email, password)) {
-                Nav.main(this).showMain();
-            } else {
-                showError(R.string.login_error_credentials);
+        AuthRepository.get(requireContext()).signIn(email, password, new ResultCallback<Void>() {
+            @Override
+            public void onSuccess(Void value) {
+                if (b == null) return;
+                setLoading(false);
+                Nav.main(LoginFragment.this).showMain();
             }
-        }, getResources().getInteger(R.integer.lf_fake_network_delay_ms));
+
+            @Override
+            public void onError(String message) {
+                if (b == null) return;
+                setLoading(false);
+                showError(message);
+            }
+        });
     }
 
     private void showError(@StringRes int message) {
+        showError(getString(message));
+    }
+
+    private void showError(String message) {
         b.txtError.setText(message);
         b.txtError.setVisibility(View.VISIBLE);
     }
@@ -97,7 +104,6 @@ public class LoginFragment extends Fragment {
     @Override
     public void onDestroyView() {
         super.onDestroyView();
-        handler.removeCallbacksAndMessages(null);
         b = null;
     }
 }

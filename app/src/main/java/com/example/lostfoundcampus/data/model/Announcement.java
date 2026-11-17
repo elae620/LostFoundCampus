@@ -1,6 +1,5 @@
 package com.example.lostfoundcampus.data.model;
 
-import androidx.annotation.DrawableRes;
 import androidx.annotation.Nullable;
 
 import java.util.ArrayList;
@@ -19,16 +18,14 @@ public class Announcement {
     public CampusLocation location;
     public long eventDate;
     public final long createdAt;
-    /** Étape 1 : drawables d'exemple (1 à 5). Étape 2 : photoUrls dans Storage. */
-    public final List<Integer> photoRes = new ArrayList<>();
+    /** Chemins dans le bucket « announcement-photos » (1 à 5). */
+    public final List<String> photoPaths = new ArrayList<>();
     public final String authorId;
-    @Nullable
-    public ImageAnalysis analysis;
 
     public Announcement(String id, AnnouncementType type, AnnouncementStatus status, String title,
                         Category category, String description, @Nullable ColorSwatch color,
                         CampusLocation location, long eventDate, long createdAt,
-                        List<Integer> photos, String authorId) {
+                        List<String> photos, String authorId) {
         this.id = id;
         this.type = type;
         this.status = status;
@@ -39,7 +36,7 @@ public class Announcement {
         this.location = location;
         this.eventDate = eventDate;
         this.createdAt = createdAt;
-        this.photoRes.addAll(photos);
+        if (photos != null) this.photoPaths.addAll(photos);
         this.authorId = authorId;
     }
 
@@ -47,9 +44,9 @@ public class Announcement {
         return status == AnnouncementStatus.ACTIVE;
     }
 
-    @DrawableRes
-    public int coverPhoto() {
-        return photoRes.isEmpty() ? 0 : photoRes.get(0);
+    @Nullable
+    public String coverPath() {
+        return photoPaths.isEmpty() ? null : photoPaths.get(0);
     }
 
     public boolean hasDescription() {

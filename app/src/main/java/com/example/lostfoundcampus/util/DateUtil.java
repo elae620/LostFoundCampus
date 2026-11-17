@@ -4,10 +4,12 @@ import android.content.Context;
 
 import com.example.lostfoundcampus.R;
 
+import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.Locale;
+import java.util.TimeZone;
 
 /** Formats de date en français. Les motifs ne sont pas des textes visibles. */
 public final class DateUtil {
@@ -64,6 +66,39 @@ public final class DateUtil {
         if (d == 1) return c.getString(R.string.time_yesterday);
         if (d < 7) return capitalize(new SimpleDateFormat("EEE", FR).format(new Date(time)));
         return new SimpleDateFormat("d MMM", FR).format(new Date(time));
+    }
+
+    /** « 2026-11-16T15:04:05.123+00:00 » (timestamptz renvoyé en UTC par PostgREST) → millisecondes. */
+    public static long parseIso(String iso) {
+        if (iso == null || iso.length() < 19) return 0;
+        try {
+            SimpleDateFormat f = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.ROOT);
+            f.setTimeZone(TimeZone.getTimeZone("UTC"));
+            Date d = f.parse(iso.substring(0, 19).replace(' ', 'T'));
+            return d == null ? 0 : d.getTime();
+        } catch (ParseException e) {
+            return 0;
+        }
+    }
+
+    /** « 2026-11-09 » (colonne date) → midi heure locale de ce jour. */
+    public static long parseDay(String day) {
+        if (day == null || day.length() < 10) return 0;
+        try {
+            Date d = new SimpleDateFormat("yyyy-MM-dd", Locale.ROOT).parse(day.substring(0, 10));
+            if (d == null) return 0;
+            Calendar c = Calendar.getInstance();
+            c.setTime(d);
+            c.set(Calendar.HOUR_OF_DAY, 12);
+            return c.getTimeInMillis();
+        } catch (ParseException e) {
+            return 0;
+        }
+    }
+
+    /** Jour local au format SQL « 2026-11-09 ». */
+    public static String formatDay(long time) {
+        return new SimpleDateFormat("yyyy-MM-dd", Locale.ROOT).format(new Date(time));
     }
 
     private static Calendar startOfDay(long time) {

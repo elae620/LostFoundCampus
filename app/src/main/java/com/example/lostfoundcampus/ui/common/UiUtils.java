@@ -7,6 +7,7 @@ import android.widget.ImageView;
 import android.widget.TextView;
 
 import androidx.annotation.ColorRes;
+import androidx.annotation.Nullable;
 import androidx.core.content.ContextCompat;
 import androidx.core.view.ViewCompat;
 
@@ -61,7 +62,8 @@ public final class UiUtils {
         badge.setTextColor(ContextCompat.getColor(c, fg));
     }
 
-    public static String initials(String fullName) {
+    public static String initials(@Nullable String fullName) {
+        if (fullName == null) return "";
         String[] parts = fullName.trim().split("\\s+");
         StringBuilder sb = new StringBuilder();
         for (String p : parts) {
@@ -74,23 +76,24 @@ public final class UiUtils {
     }
 
     @ColorRes
-    public static int avatarColor(String uid) {
-        return AVATAR_COLORS[Math.abs(uid.hashCode()) % AVATAR_COLORS.length];
+    public static int avatarColor(@Nullable String uid) {
+        if (uid == null) return R.color.lf_violet_600;
+        return AVATAR_COLORS[Math.abs(uid.hashCode() % AVATAR_COLORS.length)];
     }
 
-    /** Avatar à initiales ; si l'utilisateur a une photo, l'image remplace les initiales. */
-    public static void bindAvatar(TextView initials, ImageView photo, User user) {
+    /** Avatar à initiales ; si l'utilisateur a une photo, elle s'affiche par-dessus. */
+    public static void bindAvatar(TextView initials, @Nullable ImageView photo, User user) {
         Context c = initials.getContext();
-        if (user.photoRes != 0 && photo != null) {
-            photo.setImageResource(user.photoRes);
+        initials.setVisibility(View.VISIBLE);
+        initials.setText(initials(user.fullName));
+        ViewCompat.setBackgroundTintList(initials,
+                ColorStateList.valueOf(ContextCompat.getColor(c, avatarColor(user.uid))));
+        if (photo == null) return;
+        if (user.hasPhoto()) {
             photo.setVisibility(View.VISIBLE);
-            initials.setVisibility(View.INVISIBLE);
+            ImageLoader.avatar(photo, user.photoPath);
         } else {
-            if (photo != null) photo.setVisibility(View.GONE);
-            initials.setVisibility(View.VISIBLE);
-            initials.setText(initials(user.fullName));
-            ViewCompat.setBackgroundTintList(initials,
-                    ColorStateList.valueOf(ContextCompat.getColor(c, avatarColor(user.uid))));
+            photo.setVisibility(View.GONE);
         }
     }
 

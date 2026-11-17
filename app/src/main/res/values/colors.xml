@@ -40,8 +40,6 @@
     <color name="lf_error_on_dark">#FFB3B3</color>
     <color name="lf_success">#2F7D55</color>
     <color name="lf_scrim">#B32E1A2E</color>
-    <color name="lf_debug_bg">#FFF4CC</color>
-    <color name="lf_debug_ink">#6B5200</color>
 
     <!-- Animation d'analyse IA -->
     <color name="ai_violet">#A274D6</color>

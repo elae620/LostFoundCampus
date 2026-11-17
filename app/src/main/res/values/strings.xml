@@ -15,6 +15,16 @@
     <string name="separator_dot">%1$s · %2$s</string>
     <string name="loading">Chargement…</string>
 
+    <!-- ===== Erreurs réseau et serveur ===== -->
+    <string name="error_network">Pas de connexion à Internet. Vérifiez le réseau, puis réessayez.</string>
+    <string name="error_generic">L’opération n’a pas abouti. Réessayez dans un instant.</string>
+    <string name="error_server">Le serveur ne répond pas correctement. Réessayez dans quelques minutes.</string>
+    <string name="error_session_expired">Votre session a expiré. Connectez-vous à nouveau.</string>
+    <string name="error_forbidden">Cette action n’est pas autorisée avec votre compte.</string>
+    <string name="error_rate_limit">Trop de tentatives. Patientez une minute, puis réessayez.</string>
+    <string name="error_config_missing">Configuration Supabase manquante : ajoutez SUPABASE_URL et SUPABASE_PUBLISHABLE_KEY dans local.properties, puis recompilez.</string>
+    <string name="state_error_title">Chargement impossible</string>
+
     <!-- ===== Navigation basse ===== -->
     <string name="nav_home">Accueil</string>
     <string name="nav_publish">Publier</string>
@@ -54,6 +64,9 @@
     <string name="register_already">Déjà inscrit ?</string>
     <string name="register_sign_in">Se connecter</string>
     <string name="register_success">Compte créé. Bienvenue sur LostFound Campus.</string>
+    <string name="register_confirm_title">Confirmez votre adresse</string>
+    <string name="register_confirm_body">Un e-mail de confirmation a été envoyé à %1$s. Ouvrez le lien qu’il contient, puis connectez-vous.</string>
+    <string name="action_ok">J’ai compris</string>
 
     <!-- ===== Erreurs de formulaire ===== -->
     <string name="error_name_required">Indiquez votre nom complet.</string>
@@ -61,6 +74,11 @@
     <string name="error_password_short">Utilisez au moins 8 caractères.</string>
     <string name="error_password_mismatch">Les deux mots de passe ne correspondent pas. Saisissez-les à nouveau.</string>
     <string name="error_password_current">Mot de passe actuel incorrect. Vérifiez-le ou réinitialisez-le depuis l’écran de connexion.</string>
+    <string name="error_email_not_confirmed">Adresse non confirmée : ouvrez le lien reçu par e-mail, puis connectez-vous.</string>
+    <string name="error_user_exists">Un compte existe déjà avec cette adresse. Connectez-vous ou réinitialisez votre mot de passe.</string>
+    <string name="error_signup_disabled">Les inscriptions sont fermées pour le moment. Contactez l’administrateur de l’app.</string>
+    <string name="error_code_invalid">Code invalide ou expiré. Vérifiez-le ou demandez un nouveau code.</string>
+    <string name="error_code_required">Saisissez le code à 6 chiffres reçu par e-mail.</string>
     <string name="error_password_current_required">Saisissez votre mot de passe actuel.</string>
 
     <!-- ===== Mot de passe oublié ===== -->
@@ -69,9 +87,15 @@
     <string name="forgot_subtitle">Saisissez votre e-mail universitaire. Nous vous enverrons un lien pour choisir un nouveau mot de passe.</string>
     <string name="forgot_submit">Envoyer le lien</string>
     <string name="forgot_loading">Envoi…</string>
-    <string name="forgot_sent_title">Lien envoyé</string>
-    <string name="forgot_sent_body">Un lien de réinitialisation a été envoyé à %1$s. Pensez à vérifier vos courriers indésirables.</string>
-    <string name="forgot_back_to_login">Retour à la connexion</string>
+    <string name="forgot_code_title">Saisissez le code reçu</string>
+    <string name="forgot_code_body">Un code à 6 chiffres a été envoyé à %1$s. Pensez à vérifier vos courriers indésirables.</string>
+    <string name="label_code">Code reçu par e-mail *</string>
+    <string name="hint_code">123456</string>
+    <string name="forgot_reset_submit">Changer le mot de passe</string>
+    <string name="forgot_reset_loading">Modification…</string>
+    <string name="forgot_resend">Renvoyer le code</string>
+    <string name="forgot_code_resent">Nouveau code envoyé.</string>
+    <string name="forgot_reset_done">Mot de passe modifié. Vous êtes connecté.</string>
 
     <!-- ===== Accueil ===== -->
     <string name="home_greeting">Bonjour, %1$s</string>
@@ -170,6 +194,12 @@
     <string name="publish_save">Enregistrer les modifications</string>
     <string name="publish_loading">Publication…</string>
     <string name="publish_success">Annonce publiée.</string>
+    <string name="publish_uploading">Envoi des photos (%1$d/%2$d)…</string>
+    <string name="publish_saving">Enregistrement…</string>
+    <string name="error_camera_unavailable">Aucune application d’appareil photo n’est disponible sur cet appareil.</string>
+    <string name="error_photo_read">Impossible de lire cette photo. Choisissez-en une autre.</string>
+    <string name="error_photo_too_large">Photo trop lourde. Choisissez une autre photo.</string>
+    <string name="error_date_future">La date ne peut pas être dans le futur. Choisissez une autre date.</string>
     <string name="publish_updated">Annonce mise à jour.</string>
     <string name="error_photo_required">Ajoutez au moins une photo de l’objet.</string>
     <string name="error_item_name">Indiquez le nom de l’objet.</string>
@@ -187,6 +217,8 @@
     <string name="cd_preview_photo">Photo prise</string>
 
     <!-- ===== Analyse IA ===== -->
+    <string name="ai_status_prepare">Préparation de la photo…</string>
+    <string name="ai_error">L’analyse n’a pas abouti. Vous pouvez remplir les champs vous-même.</string>
     <string name="ai_status_detect">Détection de l’objet…</string>
     <string name="ai_status_text">Lecture du texte visible…</string>
     <string name="ai_status_color">Analyse de la couleur…</string>
@@ -212,9 +244,11 @@
     <string name="picker_precision_label">Précision (facultatif)</string>
     <string name="picker_precision_hint">Ex. : près des tables de travail</string>
     <string name="picker_confirm">Confirmer ce lieu</string>
-    <string name="picker_position_simulated">Position d’exemple sur le campus (la vraie position arrive à l’étape 2).</string>
     <string name="map_edit_location">Modifier le lieu</string>
     <string name="location_updated">Lieu mis à jour.</string>
+    <string name="location_searching">Recherche de votre position…</string>
+    <string name="location_unavailable">Position indisponible : touchez la carte pour placer le lieu.</string>
+    <string name="location_permission_denied">Localisation refusée : touchez la carte pour placer le lieu à la main.</string>
     <string name="map_attribution">© contributeurs OpenStreetMap</string>
 
     <!-- ===== Détail ===== -->
@@ -224,10 +258,8 @@
     <string name="detail_date_found">Date de découverte</string>
     <string name="detail_contact">Contacter l’utilisateur</string>
     <string name="detail_matches">Voir les correspondances</string>
-    <string name="detail_author_subtitle">%1$s · Coordonnées visibles via la messagerie</string>
+    <string name="detail_author_subtitle">Coordonnées visibles via la messagerie</string>
     <string name="detail_location_title">Lieu sur la carte</string>
-    <string name="debug_author_mode">Mode auteur (debug)</string>
-    <string name="debug_author_hint">Simule l’affichage pour l’auteur de l’annonce.</string>
     <string name="cd_gallery">Galerie de photos, photo %1$d sur %2$d</string>
     <string name="detail_not_found">Cette annonce n’existe plus.</string>
 
@@ -262,13 +294,15 @@
     <string name="time_yesterday">Hier</string>
 
     <!-- ===== Conversation ===== -->
-    <string name="chat_status_recent">En ligne récemment</string>
     <string name="chat_linked">Annonce liée · %1$s</string>
     <string name="chat_input_hint">Écrire un message…</string>
     <string name="chat_send">Envoyer</string>
     <string name="chat_sending">Envoi en cours…</string>
+    <string name="chat_failed">Échec de l’envoi. Touchez le message pour réessayer.</string>
+    <string name="chat_load_error">Impossible de charger les messages. Nouvel essai automatique…</string>
+    <string name="cd_retry_message">Réessayer l’envoi de ce message</string>
     <string name="chat_sent_at">Envoyé · %1$s</string>
-    <string name="chat_ai_draft_chip">Message suggéré par l’IA</string>
+    <string name="chat_ai_draft_chip">Message suggéré</string>
     <string name="chat_ai_draft_hint">Ce brouillon n’est envoyé que si vous appuyez sur Envoyer. Modifiez-le librement.</string>
     <string name="cd_clear_draft">Effacer le message suggéré</string>
     <string name="chat_empty_body">Présentez-vous et décrivez l’objet pour vérifier qu’il s’agit du bon.</string>
@@ -302,7 +336,9 @@
     <string name="edit_profile_info_section">Informations</string>
     <string name="edit_profile_save">Enregistrer le profil</string>
     <string name="edit_profile_saved">Profil mis à jour.</string>
+    <string name="edit_profile_photo_error">Cette photo ne peut pas être lue. Choisissez-en une autre.</string>
     <string name="edit_profile_photo_changed">Nouvelle photo sélectionnée. Enregistrez pour l’appliquer.</string>
+    <string name="edit_profile_saving">Enregistrement…</string>
     <string name="edit_profile_password_section">Changer le mot de passe</string>
     <string name="label_current_password">Mot de passe actuel *</string>
     <string name="label_new_password">Nouveau mot de passe *</string>
@@ -311,4 +347,64 @@
     <string name="edit_profile_password_saved">Mot de passe modifié.</string>
     <string name="cd_profile_photo">Photo de profil</string>
     <string name="edit_profile_email_note">L’adresse e-mail universitaire ne peut pas être modifiée.</string>
+
+    <!-- ===== Traduction des étiquettes ML Kit (clé anglaise → libellé affiché), mêmes positions ===== -->
+    <string-array name="mlkit_label_keys" translatable="false">
+        <item>mobile phone</item>
+        <item>bag</item>
+        <item>backpack</item>
+        <item>handbag</item>
+        <item>luggage</item>
+        <item>wallet</item>
+        <item>glasses</item>
+        <item>sunglasses</item>
+        <item>jacket</item>
+        <item>jeans</item>
+        <item>shoe</item>
+        <item>sneakers</item>
+        <item>cap</item>
+        <item>hat</item>
+        <item>scarf</item>
+        <item>computer</item>
+        <item>laptop</item>
+        <item>headphones</item>
+        <item>watch</item>
+        <item>camera</item>
+        <item>umbrella</item>
+        <item>bottle</item>
+        <item>book</item>
+        <item>pen</item>
+        <item>gadget</item>
+        <item>keyboard</item>
+        <item>tablet computer</item>
+    </string-array>
+    <string-array name="mlkit_label_fr">
+        <item>Téléphone</item>
+        <item>Sac</item>
+        <item>Sac à dos</item>
+        <item>Sac à main</item>
+        <item>Bagage</item>
+        <item>Portefeuille</item>
+        <item>Lunettes</item>
+        <item>Lunettes de soleil</item>
+        <item>Veste</item>
+        <item>Jean</item>
+        <item>Chaussure</item>
+        <item>Baskets</item>
+        <item>Casquette</item>
+        <item>Chapeau</item>
+        <item>Écharpe</item>
+        <item>Ordinateur</item>
+        <item>Ordinateur portable</item>
+        <item>Écouteurs</item>
+        <item>Montre</item>
+        <item>Appareil photo</item>
+        <item>Parapluie</item>
+        <item>Bouteille</item>
+        <item>Livre</item>
+        <item>Stylo</item>
+        <item>Appareil électronique</item>
+        <item>Clavier</item>
+        <item>Tablette</item>
+    </string-array>
 </resources>

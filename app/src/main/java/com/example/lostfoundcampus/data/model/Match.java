@@ -1,18 +1,13 @@
 package com.example.lostfoundcampus.data.model;
 
+/** Résultat de la fonction SQL match_candidates : une annonce candidate et son score (sur 100). */
 public class Match {
 
-    public final String lostAnnouncementId;
-    public final String foundAnnouncementId;
+    public final String announcementId;
     public final int score;
 
-    public Match(String lostAnnouncementId, String foundAnnouncementId, int score) {
-        this.lostAnnouncementId = lostAnnouncementId;
-        this.foundAnnouncementId = foundAnnouncementId;
+    public Match(String announcementId, int score) {
+        this.announcementId = announcementId;
         this.score = score;
-    }
-
-    public String otherId(String announcementId) {
-        return announcementId.equals(lostAnnouncementId) ? foundAnnouncementId : lostAnnouncementId;
     }
 }

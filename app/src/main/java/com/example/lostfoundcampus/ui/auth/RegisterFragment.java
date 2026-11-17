@@ -1,8 +1,6 @@
 package com.example.lostfoundcampus.ui.auth;
 
 import android.os.Bundle;
-import android.os.Handler;
-import android.os.Looper;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -14,17 +12,19 @@ import androidx.fragment.app.Fragment;
 
 import com.example.lostfoundcampus.MainActivity;
 import com.example.lostfoundcampus.R;
-import com.example.lostfoundcampus.data.FakeRepository;
+import com.example.lostfoundcampus.data.AuthRepository;
+import com.example.lostfoundcampus.data.ResultCallback;
 import com.example.lostfoundcampus.databinding.FragmentRegisterBinding;
 import com.example.lostfoundcampus.ui.common.Nav;
 import com.example.lostfoundcampus.util.InsetsUtil;
 import com.example.lostfoundcampus.util.Validators;
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
+import com.google.android.material.snackbar.Snackbar;
 import com.google.android.material.textfield.TextInputLayout;
 
 public class RegisterFragment extends Fragment {
 
     private FragmentRegisterBinding b;
-    private final Handler handler = new Handler(Looper.getMainLooper());
 
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container,
@@ -81,14 +81,41 @@ public class RegisterFragment extends Fragment {
         }
 
         setLoading(true);
-        // ÉTAPE 1 : création simulée. Étape 2 : FirebaseAuth.createUserWithEmailAndPassword + profil Firestore.
-        handler.postDelayed(() -> {
-            if (b == null) return;
-            FakeRepository.get().register(name);
-            MainActivity main = Nav.main(this);
-            main.showMain();
-            main.showMessage(R.string.register_success);
-        }, getResources().getInteger(R.integer.lf_fake_network_delay_ms));
+        // Le profil (nom, e-mail universitaire) est créé côté base par le trigger handle_new_user.
+        AuthRepository.get(requireContext()).signUp(name, email, password, new ResultCallback<Boolean>() {
+            @Override
+            public void onSuccess(Boolean needsConfirmation) {
+                if (b == null) return;
+                setLoading(false);
+                if (Boolean.TRUE.equals(needsConfirmation)) {
+                    new MaterialAlertDialogBuilder(requireContext())
+                            .setTitle(R.string.register_confirm_title)
+                            .setMessage(getString(R.string.register_confirm_body, email))
+                            .setPositiveButton(R.string.action_ok, (d, w) -> Nav.back(RegisterFragment.this))
+                            .setCancelable(false)
+                            .show();
+                } else {
+                    MainActivity main = Nav.main(RegisterFragment.this);
+                    main.showMain();
+                    main.showMessage(R.string.register_success);
+                }
+            }
+
+            @Override
+            public void onError(String message) {
+                if (b == null) return;
+                setLoading(false);
+                if (message.equals(getString(R.string.error_email_university))
+                        || message.equals(getString(R.string.error_user_exists))) {
+                    b.tilEmail.setError(message);
+                    b.tilEmail.requestFocus();
+                } else if (message.equals(getString(R.string.error_password_short))) {
+                    b.tilPassword.setError(message);
+                } else {
+                    Snackbar.make(b.getRoot(), message, Snackbar.LENGTH_LONG).show();
+                }
+            }
+        });
     }
 
     private void setLoading(boolean loading) {
@@ -99,7 +126,6 @@ public class RegisterFragment extends Fragment {
     @Override
     public void onDestroyView() {
         super.onDestroyView();
-        handler.removeCallbacksAndMessages(null);
         b = null;
     }
 }

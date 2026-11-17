@@ -14,6 +14,7 @@ import androidx.navigation.NavGraph;
 import androidx.navigation.fragment.NavHostFragment;
 import androidx.navigation.ui.NavigationUI;
 
+import com.example.lostfoundcampus.data.AuthRepository;
 import com.example.lostfoundcampus.databinding.ActivityMainBinding;
 import com.google.android.material.snackbar.Snackbar;
 
@@ -59,6 +60,18 @@ public class MainActivity extends AppCompatActivity {
             // Pas de rechargement quand on retouche l'onglet actif.
         });
 
+        // Session expirée (rafraîchissement refusé) : retour à la connexion.
+        AuthRepository.get(this).session().setExpiredListener(() -> {
+            if (!inMain) return;
+            showAuth();
+            showMessage(R.string.error_session_expired);
+        });
+
+        // Démarrage : une session valide ouvre directement l'accueil.
+        if (savedInstanceState == null && AuthRepository.get(this).isSignedIn()) {
+            showMain();
+        }
+
         navController.addOnDestinationChangedListener((controller, destination, arguments) -> {
             int id = destination.getId();
             binding.bottomNav.setVisibility(TOP_LEVEL.contains(id) ? View.VISIBLE : View.GONE);
@@ -67,6 +80,12 @@ public class MainActivity extends AppCompatActivity {
             bars.setAppearanceLightStatusBars(light);
             bars.setAppearanceLightNavigationBars(light);
         });
+    }
+
+    @Override
+    protected void onDestroy() {
+        AuthRepository.get(this).session().setExpiredListener(null);
+        super.onDestroy();
     }
 
     @Override
