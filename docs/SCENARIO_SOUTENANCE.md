@@ -360,7 +360,75 @@ Dans `AndroidManifest.xml` :
 | Comment récupérez-vous la photo ? | `onPhotoTaken(Boolean saved)` ; l'image est dans l'URI préparée |
 | Faut-il la permission caméra ? | Non : c'est l'application photo qui prend la photo, et nous ne déclarons pas `CAMERA` |
 
-## 6. Cycle de vie (souvent lié)
+## 6. Circulation des données entre fragments
+
+Tous les fragments vivent dans `MainActivity` : aucun intent n'est nécessaire.
+
+| Moyen | Sens | Utilisé pour |
+|---|---|---|
+| Bundle | A → B | Envoyer un identifiant |
+| SavedStateHandle | B → A | Renvoyer un résultat |
+| ViewModel partagé | A ↔ B ↔ C | Partager un brouillon |
+| Base de données | Tous | Relire les données complètes |
+
+### Bundle : Accueil → Détail
+
+Envoi (`HomeFragment`) :
+
+```java
+Nav.go(this, R.id.announcementDetailFragment, AnnouncementDetailFragment.args(a.id));
+```
+
+Création et lecture (`AnnouncementDetailFragment`) :
+
+```java
+Bundle args = new Bundle();
+args.putString(ARG_ID, announcementId);
+```
+
+```java
+announcementId = getArguments() == null ? null : getArguments().getString(ARG_ID);
+```
+
+Même principe : `MatchesFragment`, `ChatFragment`, `CropFragment`.
+
+### SavedStateHandle : Carte → Publier
+
+`LocationPickerFragment` dépose le lieu, puis revient :
+
+```java
+if (previous != null) previous.getSavedStateHandle().set(RESULT_KEY, result);
+nav.popBackStack();
+```
+
+`PublishFragment` (et `AnnouncementDetailFragment`) observe ce résultat avec `getLiveData(...)`. `CampusLocation` peut être transmis car il implémente `Serializable`. C'est l'équivalent de `setResult()`.
+
+### ViewModel partagé : Publier, Aperçu, Cadrage, Analyse
+
+```java
+vm = new ViewModelProvider(requireActivity()).get(PublishViewModel.class);
+```
+
+Avec `requireActivity()`, le ViewModel appartient à l'activité : les quatre fragments reçoivent la même instance. Il survit à une rotation, mais pas à la fermeture de l'app par Android.
+
+### Base de données
+
+Le détail reçoit seulement l'`id`, puis relit l'annonce dans Supabase : le Bundle reste léger et les données sont à jour. Les `Repository` sont des singletons ; `ProfileRepository` garde aussi les profils en cache.
+
+```text
+Accueil ──Bundle(id)──> Détail ──Bundle(id)──> Correspondances
+                          └── relit l'annonce dans Supabase
+
+Publier <──SavedStateHandle(lieu)── Carte
+   └── PublishViewModel partagé ── Aperçu, Cadrage, Analyse IA
+```
+
+| Question | Réponse |
+|---|---|
+| Un intent peut-il ouvrir un fragment ? | Pas directement : il démarre un composant comme une activité. Le `FragmentManager` affiche les fragments, via le Navigation Component |
+| Pourquoi ne pas envoyer toute l'annonce ? | Bundle léger et données à jour |
+
+## 7. Cycle de vie (souvent lié)
 
 | Méthode | Utilisation |
 |---|---|
@@ -372,7 +440,7 @@ Dans `AndroidManifest.xml` :
 | `onSaveInstanceState` | Garder l'onglet, la catégorie |
 | `onDestroyView` | Libérer la vue |
 
-## 7. Fiche à relire juste avant
+## 8. Fiche à relire juste avant
 
 1. **1 activité, 15 fragments.**
 2. **6 RecyclerView**, 0 ListView, 0 Spinner.
@@ -380,5 +448,5 @@ Dans `AndroidManifest.xml` :
 4. **PostgreSQL via Supabase**, 5 tables, RLS, Retrofit.
 5. **Intents explicites : aucun dans le code.**
 6. **Intents implicites : caméra et photos, via Activity Result Contracts.**
-7. **Données entre écrans : Bundle.**
+7. **Données entre écrans :** Bundle, SavedStateHandle, ViewModel partagé, base.
 8. **ViewBinding** (un seul `findViewById`, dans `HomeFragment`).
