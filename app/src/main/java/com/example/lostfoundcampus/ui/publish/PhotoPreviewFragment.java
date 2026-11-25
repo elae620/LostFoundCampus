@@ -33,6 +33,7 @@ public class PhotoPreviewFragment extends Fragment {
             registerForActivityResult(new ActivityResultContracts.TakePicture(), saved -> {
                 if (Boolean.TRUE.equals(saved) && vm.cameraTarget != null) {
                     vm.pendingPhoto = vm.cameraTarget;
+                    vm.pendingCrop = null;
                     vm.cameraTarget = null;
                     if (b != null) showPhoto();
                 }
@@ -64,9 +65,13 @@ public class PhotoPreviewFragment extends Fragment {
 
         b.btnClose.setOnClickListener(v -> {
             vm.pendingPhoto = null;
+            vm.pendingCrop = null;
             Nav.of(this).popBackStack();
         });
         b.btnAnalyze.setOnClickListener(v -> Nav.go(this, R.id.aiAnalysisFragment, null));
+        b.btnCrop.setOnClickListener(v -> {
+            if (vm.pendingPhoto != null) Nav.go(this, R.id.cropFragment, CropFragment.args(vm.pendingPhoto));
+        });
         b.btnRetake.setOnClickListener(v -> {
             try {
                 vm.cameraTarget = CameraFiles.newTarget(requireContext());

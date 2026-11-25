@@ -11,6 +11,7 @@ import androidx.fragment.app.Fragment;
 import androidx.navigation.NavBackStackEntry;
 import androidx.viewpager2.widget.ViewPager2;
 
+import com.example.lostfoundcampus.util.ColorNames;
 import com.example.lostfoundcampus.R;
 import com.example.lostfoundcampus.data.AnnouncementRepository;
 import com.example.lostfoundcampus.data.AuthRepository;
@@ -151,7 +152,8 @@ public class AnnouncementDetailFragment extends Fragment {
         b.txtDescription.setVisibility(a.hasDescription() ? View.VISIBLE : View.GONE);
 
         b.rowColor.txtInfoLabel.setText(R.string.detail_color);
-        b.rowColor.txtInfoValue.setText(a.color == null ? R.string.color_unknown : a.color.labelRes);
+        String colorText = ColorNames.display(a.color);
+        b.rowColor.txtInfoValue.setText(colorText != null ? colorText : getString(R.string.color_unknown));
         b.rowLocation.txtInfoLabel.setText(R.string.detail_location);
         b.rowLocation.txtInfoValue.setText(MapHelper.label(requireContext(), a.location));
         b.rowDate.txtInfoLabel.setText(a.type == AnnouncementType.LOST ? R.string.detail_date_lost : R.string.detail_date_found);

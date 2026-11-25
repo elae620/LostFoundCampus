@@ -80,6 +80,8 @@ dependencies {
     // ML Kit (modèles intégrés, sans Firebase) : étiquettes et texte visible.
     implementation(libs.mlkit.image.labeling)
     implementation(libs.mlkit.text.recognition)
+    // MediaPipe : localisation et classement des objets (modèles .tflite dans assets).
+    implementation(libs.mediapipe.tasks.vision)
     testImplementation(libs.junit)
     androidTestImplementation(libs.espresso.core)
     androidTestImplementation(libs.ext.junit)

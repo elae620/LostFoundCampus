@@ -7,7 +7,6 @@ import com.example.lostfoundcampus.data.model.AnnouncementStatus;
 import com.example.lostfoundcampus.data.model.AnnouncementType;
 import com.example.lostfoundcampus.data.model.CampusLocation;
 import com.example.lostfoundcampus.data.model.Category;
-import com.example.lostfoundcampus.data.model.ColorSwatch;
 import com.example.lostfoundcampus.data.model.ConversationSummary;
 import com.example.lostfoundcampus.data.model.Message;
 import com.example.lostfoundcampus.data.model.User;
@@ -16,6 +15,8 @@ import com.example.lostfoundcampus.data.remote.dto.ConversationRowDto;
 import com.example.lostfoundcampus.data.remote.dto.MessageDto;
 import com.example.lostfoundcampus.data.remote.dto.ProfileDto;
 import com.example.lostfoundcampus.util.DateUtil;
+
+import com.example.lostfoundcampus.util.ColorNames;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -33,7 +34,7 @@ public final class Mappers {
                 d.title == null ? "" : d.title,
                 enumOr(Category.class, d.category, Category.OTHER),
                 d.description == null ? "" : d.description,
-                d.color == null ? null : enumOr(ColorSwatch.class, d.color, null),
+                ColorNames.display(d.color),
                 new CampusLocation(d.latitude, d.longitude, d.locationPrecision),
                 DateUtil.parseDay(d.eventDate),
                 DateUtil.parseIso(d.createdAt),

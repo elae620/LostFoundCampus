@@ -17,6 +17,14 @@ Analyse des photos sur l'appareil : ML Kit (étiquettes, texte) et Palette (coul
    L'app demande ce code à 6 chiffres, puis le nouveau mot de passe.
 5. **Project Settings > API Keys** : noter l'URL du projet et la clé *publishable* (`sb_publishable_…`).
 
+### Données de démonstration (facultatif)
+
+1. **SQL Editor** : exécuter `supabase/seed_demo.sql` (6 comptes `@universite.tn`, 18 annonces dont
+   5 paires perdu/trouvé qui se correspondent, analyses de photos, 2 conversations). Choisir le mot de passe
+   des comptes de test (REMPLACER_MOT_DE_PASSE) et le mettre dans `local.properties` (`DEMO_PASSWORD=…`).
+2. Depuis la racine du projet (après avoir rempli `local.properties`) : `python supabase/seed_photos.py`
+   envoie une photo d'illustration pour chaque annonce (nécessite `pip install pillow`).
+
 > Un projet gratuit est mis en pause après une semaine sans activité : ouvrir le tableau de bord
 > avant une démonstration pour le réveiller.
 

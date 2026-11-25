@@ -176,8 +176,6 @@ public class HomeFragment extends Fragment {
 
     private void reload() {
         if (b == null) return;
-        loadedCount = 0;
-        endReached = false;
         loadPage(true);
     }
 
@@ -200,7 +198,8 @@ public class HomeFragment extends Fragment {
                         b.progress.setVisibility(View.GONE);
                         if (first) adapter.submit(page);
                         else adapter.append(page);
-                        loadedCount += page.size();
+                        // Remis à zéro seulement en cas de succès : sinon un échec ferait ré-ajouter la page 1.
+                        loadedCount = first ? page.size() : loadedCount + page.size();
                         endReached = page.size() < AnnouncementRepository.PAGE_SIZE;
                         renderEmpty(null);
                     }

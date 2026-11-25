@@ -68,15 +68,41 @@ public final class DateUtil {
         return new SimpleDateFormat("d MMM", FR).format(new Date(time));
     }
 
-    /** « 2026-11-16T15:04:05.123+00:00 » (timestamptz renvoyé en UTC par PostgREST) → millisecondes. */
+    /**
+     * « 2026-11-16T15:04:05.123+00:00 » (timestamptz PostgREST) → millisecondes.
+     * Le décalage horaire (+01:00, Z…) est pris en compte : sans lui, on suppose UTC.
+     */
     public static long parseIso(String iso) {
         if (iso == null || iso.length() < 19) return 0;
         try {
             SimpleDateFormat f = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.ROOT);
             f.setTimeZone(TimeZone.getTimeZone("UTC"));
             Date d = f.parse(iso.substring(0, 19).replace(' ', 'T'));
-            return d == null ? 0 : d.getTime();
+            if (d == null) return 0;
+            return d.getTime() - offsetMillis(iso.substring(19));
         } catch (ParseException e) {
+            return 0;
+        }
+    }
+
+    /** Décalage « +01:00 », « -0530 », « +02 » ou « Z » à la fin d'une date ISO (après les fractions). */
+    private static long offsetMillis(String tail) {
+        int i = 0;
+        if (i < tail.length() && tail.charAt(i) == '.') {
+            i++;
+            while (i < tail.length() && Character.isDigit(tail.charAt(i))) i++;
+        }
+        if (i >= tail.length()) return 0;
+        char sign = tail.charAt(i);
+        if (sign != '+' && sign != '-') return 0;
+        String digits = tail.substring(i + 1).replace(":", "");
+        if (digits.length() < 2) return 0;
+        try {
+            int hours = Integer.parseInt(digits.substring(0, 2));
+            int minutes = digits.length() >= 4 ? Integer.parseInt(digits.substring(2, 4)) : 0;
+            long ms = (hours * 60L + minutes) * 60_000L;
+            return sign == '-' ? -ms : ms;
+        } catch (NumberFormatException e) {
             return 0;
         }
     }

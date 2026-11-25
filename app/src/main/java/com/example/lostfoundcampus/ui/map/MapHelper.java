@@ -18,7 +18,8 @@ import com.example.lostfoundcampus.data.model.CampusLocation;
 
 import org.osmdroid.config.Configuration;
 import org.osmdroid.config.IConfigurationProvider;
-import org.osmdroid.tileprovider.tilesource.TileSourceFactory;
+import org.osmdroid.tileprovider.tilesource.OnlineTileSourceBase;
+import org.osmdroid.tileprovider.tilesource.XYTileSource;
 import org.osmdroid.util.GeoPoint;
 import org.osmdroid.views.CustomZoomButtonsController;
 import org.osmdroid.views.MapView;
@@ -33,6 +34,18 @@ import java.io.File;
 public final class MapHelper {
 
     private static final String PREFS = "osmdroid";
+    /** Dossier de cache pour les tuiles OpenStreetMap. */
+    private static final String TILE_CACHE = "tiles_v2";
+
+    /**
+     * Tuiles OpenStreetMap France (données OpenStreetMap, serveur gratuit et sans clé d'API).
+     */
+    private static final OnlineTileSourceBase OSM_FR = new XYTileSource("OSMFr",
+            0, 19, 256, ".png", new String[]{
+            "https://a.tile.openstreetmap.fr/osmfr/",
+            "https://b.tile.openstreetmap.fr/osmfr/",
+            "https://c.tile.openstreetmap.fr/osmfr/"},
+            "© OpenStreetMap contributors, ODbL - OSM France");
 
     /** Centre du campus, utilisé tant qu'aucun lieu n'est choisi. À adapter à votre campus. */
     private static final double CAMPUS_LAT = 36.8368;
@@ -64,15 +77,16 @@ public final class MapHelper {
         try {
             IConfigurationProvider config = Configuration.getInstance();
             config.load(context, context.getSharedPreferences(PREFS, Context.MODE_PRIVATE));
-            // Politique d'usage des tuiles OSM : un user-agent propre à l'app est obligatoire.
-            config.setUserAgentValue(BuildConfig.APPLICATION_ID);
+            // User-agent conforme pour les serveurs de tuiles OpenStreetMap.
+            config.setUserAgentValue(context.getPackageName() + "/" + BuildConfig.VERSION_NAME);
+
             // Cache des tuiles dans le dossier privé de l'app : aucune permission de stockage.
             File base = new File(context.getCacheDir(), PREFS);
             config.setOsmdroidBasePath(base);
-            config.setOsmdroidTileCache(new File(base, "tiles"));
+            config.setOsmdroidTileCache(new File(base, TILE_CACHE));
 
             MapView map = new MapView(context);
-            map.setTileSource(TileSourceFactory.MAPNIK);
+            map.setTileSource(OSM_FR);
             map.setMultiTouchControls(interactive);
             map.setTilesScaledToDpi(true);
             map.getZoomController().setVisibility(CustomZoomButtonsController.Visibility.NEVER);
@@ -95,7 +109,7 @@ public final class MapHelper {
      */
     private static void applyPaletteFilter(MapView map) {
         ColorMatrix muted = new ColorMatrix();
-        muted.setSaturation(0.35f);
+        muted.setSaturation(0.50f);
         ColorMatrix warm = new ColorMatrix(new float[]{
                 1.00f, 0, 0, 0, 8,
                 0, 0.97f, 0, 0, 4,

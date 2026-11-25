@@ -27,7 +27,8 @@ public interface RestApi {
     @GET("announcements")
     Call<List<AnnouncementDto>> announcements(@QueryMap Map<String, String> query);
 
-    @Headers("Prefer: return=representation")
+    /** Upsert sur l'id choisi par l'app : renvoyer la même annonce (réseau coupé) ne crée pas de doublon. */
+    @Headers("Prefer: return=representation,resolution=merge-duplicates")
     @POST("announcements")
     Call<List<AnnouncementDto>> insertAnnouncement(@Body Map<String, Object> body);
 

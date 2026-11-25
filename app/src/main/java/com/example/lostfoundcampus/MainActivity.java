@@ -32,7 +32,7 @@ public class MainActivity extends AppCompatActivity {
 
     /** Écrans à fond sombre : icônes de barre d'état claires. */
     private static final Set<Integer> DARK_SCREENS = new HashSet<>(Arrays.asList(
-            R.id.loginFragment, R.id.photoPreviewFragment, R.id.aiAnalysisFragment));
+            R.id.loginFragment, R.id.photoPreviewFragment, R.id.cropFragment, R.id.aiAnalysisFragment));
 
     private ActivityMainBinding binding;
     private NavController navController;

@@ -66,6 +66,16 @@
             app:iconGravity="textStart" />
 
         <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnCrop"
+            style="@style/Widget.LF.Button.Outlined.OnDark"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/lf_space_md"
+            android:text="@string/preview_crop"
+            app:icon="@drawable/ic_crop"
+            app:iconGravity="textStart" />
+
+        <com.google.android.material.button.MaterialButton
             android:id="@+id/btnRetake"
             style="@style/Widget.LF.Button.Outlined.OnDark"
             android:layout_width="match_parent"

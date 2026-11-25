@@ -11,6 +11,7 @@ import androidx.core.content.ContextCompat;
 
 import com.example.lostfoundcampus.R;
 import com.example.lostfoundcampus.data.model.CampusLocation;
+import com.google.android.gms.location.FusedLocationProviderClient;
 import com.google.android.gms.location.LocationServices;
 import com.google.android.gms.location.Priority;
 import com.google.android.gms.tasks.CancellationTokenSource;
@@ -42,13 +43,36 @@ public final class LocationHelper {
             cb.onUnavailable(R.string.location_permission_denied);
             return;
         }
+        FusedLocationProviderClient client = LocationServices.getFusedLocationProviderClient(context);
         CancellationTokenSource cts = new CancellationTokenSource();
-        LocationServices.getFusedLocationProviderClient(context)
-                .getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, cts.getToken())
+
+        client.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, cts.getToken())
                 .addOnSuccessListener(location -> {
-                    if (location == null) cb.onUnavailable(R.string.location_unavailable);
-                    else cb.onLocation(new CampusLocation(location.getLatitude(), location.getLongitude(), null));
+                    if (location != null) {
+                        cb.onLocation(new CampusLocation(location.getLatitude(), location.getLongitude(), null));
+                    } else {
+                        // En cas d'absence de fix instantané, repli sur la dernière position connue.
+                        client.getLastLocation()
+                                .addOnSuccessListener(lastLoc -> {
+                                    if (lastLoc != null) {
+                                        cb.onLocation(new CampusLocation(lastLoc.getLatitude(), lastLoc.getLongitude(), null));
+                                    } else {
+                                        cb.onUnavailable(R.string.location_unavailable);
+                                    }
+                                })
+                                .addOnFailureListener(e -> cb.onUnavailable(R.string.location_unavailable));
+                    }
                 })
-                .addOnFailureListener(e -> cb.onUnavailable(R.string.location_unavailable));
+                .addOnFailureListener(e -> {
+                    client.getLastLocation()
+                            .addOnSuccessListener(lastLoc -> {
+                                if (lastLoc != null) {
+                                    cb.onLocation(new CampusLocation(lastLoc.getLatitude(), lastLoc.getLongitude(), null));
+                                } else {
+                                    cb.onUnavailable(R.string.location_unavailable);
+                                }
+                            })
+                            .addOnFailureListener(err -> cb.onUnavailable(R.string.location_unavailable));
+                });
     }
 }

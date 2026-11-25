@@ -81,8 +81,7 @@ create table if not exists public.announcements (
   title              text not null check (char_length(btrim(title)) between 1 and 80),
   category           text not null check (category in
                        ('PHONES', 'KEYS', 'BAGS', 'WALLETS', 'CARDS', 'ELECTRONICS', 'CLOTHES', 'OTHER')),
-  color              text check (color in
-                       ('BLACK', 'WHITE', 'GREY', 'RED', 'BLUE', 'GREEN', 'BROWN', 'OTHER')),
+  color              text check (char_length(btrim(color)) between 1 and 30),   -- saisie libre
   description        text not null default '' check (char_length(description) <= 300),
   latitude           double precision not null check (latitude between -90 and 90),
   longitude          double precision not null check (longitude between -180 and 180),
@@ -133,8 +132,7 @@ create table if not exists public.photo_analyses (
   labels           text[] not null default '{}',             -- étiquettes normalisées en minuscules
   label_confidence smallint check (label_confidence between 0 and 100),
   detected_texts   text[] not null default '{}',
-  dominant_color   text check (dominant_color in
-                     ('BLACK', 'WHITE', 'GREY', 'RED', 'BLUE', 'GREEN', 'BROWN', 'OTHER')),
+  dominant_color   text check (char_length(dominant_color) <= 30),             -- ex. « Lilas »
   user_confirmed   boolean not null default false,
   analyzed_at      timestamptz not null default now(),
   unique (announcement_id, photo_index)
@@ -364,7 +362,11 @@ as $$
                      * cardinality(array(select unnest(s.lbls) intersect select unnest(c.lbls)))
                      / cardinality(array(select unnest(s.lbls) union     select unnest(c.lbls))))
            end as p_labels,
-           case when c.color is not null and c.color = s.color then 15 else 0 end as p_color,
+           case when c.color is null or s.color is null then 0
+                when lower(btrim(c.color)) = lower(btrim(s.color)) then 15
+                -- « Bleu marine » / « Bleu », « Gris anthracite » / « Gris » : même famille
+                when split_part(lower(btrim(c.color)), ' ', 1) = split_part(lower(btrim(s.color)), ' ', 1) then 8
+                else 0 end as p_color,
            2 * 6371000 * asin(least(1.0, sqrt(
                power(sin(radians(c.latitude - s.latitude) / 2), 2)
              + cos(radians(s.latitude)) * cos(radians(c.latitude))

@@ -1,5 +1,6 @@
 package com.example.lostfoundcampus.ui.publish;
 
+import android.graphics.RectF;
 import android.net.Uri;
 
 import androidx.annotation.NonNull;
@@ -11,12 +12,15 @@ import com.example.lostfoundcampus.data.model.Announcement;
 import com.example.lostfoundcampus.data.model.AnnouncementType;
 import com.example.lostfoundcampus.data.model.CampusLocation;
 import com.example.lostfoundcampus.data.model.Category;
-import com.example.lostfoundcampus.data.model.ColorSwatch;
+import com.example.lostfoundcampus.data.model.DetectedColor;
 import com.example.lostfoundcampus.data.model.ImageAnalysis;
 import com.example.lostfoundcampus.data.remote.dto.PhotoAnalysisDto;
 
+import com.example.lostfoundcampus.util.ColorNames;
+
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 /**
  * Brouillon de l'annonce, partagé (portée activité) entre Publier, l'aperçu photo,
@@ -32,6 +36,12 @@ public class PublishViewModel extends ViewModel {
         public final String remotePath;
         @Nullable
         public ImageAnalysis analysis;
+        /** Photo locale déjà envoyée par un essai précédent : pas renvoyée au suivant. */
+        @Nullable
+        public String uploadedPath;
+        /** Zone de l'objet choisie par l'utilisateur (relative 0..1), utilisée seulement pour l'analyse. */
+        @Nullable
+        public RectF crop;
 
         PhotoItem(@Nullable Uri localUri, @Nullable String remotePath) {
             this.localUri = localUri;
@@ -42,6 +52,17 @@ public class PublishViewModel extends ViewModel {
     public AnnouncementType type = AnnouncementType.LOST;
     @Nullable
     public String editingId;
+    /** L'annonce à modifier a été chargée dans le brouillon. */
+    public boolean editLoaded;
+    /** Id de la nouvelle annonce, le même à chaque essai de publication. */
+    @NonNull
+    public String draftId = UUID.randomUUID().toString();
+    /** Publication en cours : gardée ici pour survivre à une rotation. */
+    @Nullable
+    AnnouncementPublisher publisher;
+    /** Publication terminée, écran pas encore fermé. */
+    @Nullable
+    String publishedId;
 
     public final List<PhotoItem> photos = new ArrayList<>();
     /** Photos déjà en ligne retirées pendant la modification (supprimées après enregistrement). */
@@ -52,6 +73,9 @@ public class PublishViewModel extends ViewModel {
     /** Photo prise, en attente dans l'aperçu (onglet « J'ai trouvé »). */
     @Nullable
     public Uri pendingPhoto;
+    /** Cadrage de la photo en attente. */
+    @Nullable
+    public RectF pendingCrop;
 
     /** Suggestions retenues (photo la plus sûre). */
     @Nullable
@@ -60,8 +84,9 @@ public class PublishViewModel extends ViewModel {
     public String title = "";
     @Nullable
     public Category category;
+    /** Couleur saisie librement. */
     @Nullable
-    public ColorSwatch color;
+    public String color;
     public String description = "";
     @Nullable
     public CampusLocation location;
@@ -77,14 +102,20 @@ public class PublishViewModel extends ViewModel {
     @Nullable
     public Category aiCategory;
     @Nullable
-    public ColorSwatch aiColor;
+    public String aiColor;
 
     public void reset(AnnouncementType newType) {
         editingId = null;
+        editLoaded = false;
+        if (publisher != null) publisher.cancel();
+        publisher = null;
+        publishedId = null;
+        draftId = UUID.randomUUID().toString();
         photos.clear();
         removedRemotePaths.clear();
         cameraTarget = null;
         pendingPhoto = null;
+        pendingCrop = null;
         analysis = null;
         title = "";
         category = null;
@@ -103,12 +134,13 @@ public class PublishViewModel extends ViewModel {
     public void loadForEdit(@NonNull Announcement a, @NonNull List<PhotoAnalysisDto> analyses) {
         reset(a.type);
         editingId = a.id;
+        editLoaded = true;
         for (String path : a.photoPaths) photos.add(new PhotoItem(null, path));
         for (PhotoAnalysisDto d : analyses) {
             if (d.photoIndex >= 0 && d.photoIndex < photos.size()) {
                 photos.get(d.photoIndex).analysis = new ImageAnalysis(d.labels, "",
                         d.labelConfidence == null ? 0 : d.labelConfidence, d.detectedTexts,
-                        d.dominantColor == null ? null : Mappers.enumOr(ColorSwatch.class, d.dominantColor, null),
+                        storedColors(d.dominantColor),
                         a.category, a.title);
             }
         }
@@ -118,6 +150,21 @@ public class PublishViewModel extends ViewModel {
         description = a.description == null ? "" : a.description;
         location = a.location;
         date = a.eventDate;
+    }
+
+    private static List<DetectedColor> storedColors(@Nullable String stored) {
+        List<DetectedColor> out = new ArrayList<>();
+        String name = ColorNames.display(stored);
+        if (name != null) {
+            Integer rgb = ColorNames.rgbFor(name);
+            out.add(new DetectedColor(name, rgb == null ? 0xFF9AA0A6 : rgb, 1f));
+        }
+        return out;
+    }
+
+    @Override
+    protected void onCleared() {
+        if (publisher != null) publisher.cancel();
     }
 
     public boolean isEditing() {
@@ -163,6 +210,8 @@ public class PublishViewModel extends ViewModel {
         if (index < 0 || index >= photos.size()) return;
         PhotoItem removed = photos.remove(index);
         if (removed.remotePath != null) removedRemotePaths.add(removed.remotePath);
+        // Un essai précédent a pu l'enregistrer : supprimée seulement après le prochain enregistrement.
+        if (removed.uploadedPath != null) removedRemotePaths.add(removed.uploadedPath);
     }
 
     /** Photos à analyser : la photo prise en attente, sinon les photos locales pas encore analysées. */
@@ -183,15 +232,48 @@ public class PublishViewModel extends ViewModel {
         return null;
     }
 
+    @Nullable
+    public RectF cropFor(@NonNull Uri uri) {
+        if (uri.equals(pendingPhoto)) return pendingCrop == null ? null : new RectF(pendingCrop);
+        for (PhotoItem p : photos) {
+            if (uri.equals(p.localUri)) return p.crop == null ? null : new RectF(p.crop);
+        }
+        return null;
+    }
+
+    /** Enregistre le cadrage et marque la photo à réanalyser. */
+    public void setCrop(@NonNull Uri uri, @Nullable RectF crop) {
+        RectF copy = crop == null ? null : new RectF(crop);
+        if (uri.equals(pendingPhoto)) {
+            pendingCrop = copy;
+            return;
+        }
+        for (PhotoItem p : photos) {
+            if (uri.equals(p.localUri)) {
+                p.crop = copy;
+                p.analysis = null;
+            }
+        }
+    }
+
+    /** Première photo locale (cible par défaut du bouton « Cadrer l'objet »). */
+    @Nullable
+    public Uri firstLocalPhoto() {
+        for (PhotoItem p : photos) if (p.localUri != null) return p.localUri;
+        return null;
+    }
+
     /** Range une analyse avec sa photo ; la photo prise en attente rejoint la liste. */
     public void attachAnalysis(@NonNull Uri uri, @Nullable ImageAnalysis result, int max) {
         if (uri.equals(pendingPhoto)) {
             if (photos.size() < max) {
                 PhotoItem item = new PhotoItem(uri, null);
                 item.analysis = result;
+                item.crop = pendingCrop;
                 photos.add(item);
             }
             pendingPhoto = null;
+            pendingCrop = null;
             return;
         }
         for (PhotoItem p : photos) {
@@ -204,9 +286,17 @@ public class PublishViewModel extends ViewModel {
      * à une ancienne suggestion (jamais à une saisie de l'utilisateur, RG03).
      */
     public void applyBestSuggestions() {
+        // Une photo cadrée par l'utilisateur passe devant les autres, quelle que soit leur confiance.
         ImageAnalysis best = null;
+        boolean bestCropped = false;
         for (PhotoItem p : photos) {
-            if (p.analysis != null && (best == null || p.analysis.confidence > best.confidence)) best = p.analysis;
+            if (p.analysis == null) continue;
+            boolean cropped = p.crop != null;
+            if (best == null || (cropped && !bestCropped)
+                    || (cropped == bestCropped && p.analysis.confidence > best.confidence)) {
+                best = p.analysis;
+                bestCropped = cropped;
+            }
         }
         if (best == null) return;
         analysis = best;
@@ -218,7 +308,8 @@ public class PublishViewModel extends ViewModel {
             category = best.suggestedCategory;
             aiCategory = best.suggestedCategory;
         }
-        if (best.dominantColor != null && (color == null || color == aiColor)) {
+        if (best.dominantColor != null
+                && (color == null || color.trim().isEmpty() || ColorNames.same(color, aiColor))) {
             color = best.dominantColor;
             aiColor = best.dominantColor;
         }
@@ -233,6 +324,6 @@ public class PublishViewModel extends ViewModel {
     }
 
     public boolean colorIsAiSuggestion() {
-        return aiColor != null && aiColor == color;
+        return ColorNames.same(aiColor, color);
     }
 }

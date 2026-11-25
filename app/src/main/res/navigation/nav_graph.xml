@@ -36,6 +36,9 @@
         android:id="@+id/photoPreviewFragment"
         android:name="com.example.lostfoundcampus.ui.publish.PhotoPreviewFragment" />
     <fragment
+        android:id="@+id/cropFragment"
+        android:name="com.example.lostfoundcampus.ui.publish.CropFragment" />
+    <fragment
         android:id="@+id/aiAnalysisFragment"
         android:name="com.example.lostfoundcampus.ui.publish.AiAnalysisFragment" />
     <fragment

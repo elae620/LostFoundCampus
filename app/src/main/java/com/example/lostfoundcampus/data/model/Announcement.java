@@ -14,7 +14,8 @@ public class Announcement {
     public Category category;
     public String description;
     @Nullable
-    public ColorSwatch color;
+    /** Couleur saisie librement (ex. « Bleu marine »). */
+    public String color;
     public CampusLocation location;
     public long eventDate;
     public final long createdAt;
@@ -23,7 +24,7 @@ public class Announcement {
     public final String authorId;
 
     public Announcement(String id, AnnouncementType type, AnnouncementStatus status, String title,
-                        Category category, String description, @Nullable ColorSwatch color,
+                        Category category, String description, @Nullable String color,
                         CampusLocation location, long eventDate, long createdAt,
                         List<String> photos, String authorId) {
         this.id = id;

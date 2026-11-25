@@ -24,6 +24,9 @@ public final class AuthRepository {
     private static AuthRepository instance;
     private final Context app;
     private final SupabaseClient sb;
+    /** E-mail et code déjà vérifiés : le code ne sert qu'une fois, un nouvel essai ne le revérifie pas. */
+    @Nullable
+    private String verifiedRecovery;
 
     private AuthRepository(Context context) {
         app = context.getApplicationContext();
@@ -99,6 +102,23 @@ public final class AuthRepository {
 
     /** Vérifie le code reçu par e-mail (ouvre une session), puis enregistre le nouveau mot de passe. */
     public void resetPassword(String email, String code, String newPassword, ResultCallback<Void> cb) {
+        final String recovery = normalize(email) + "|" + code.trim();
+        ResultCallback<Void> save = new ResultCallback<Void>() {
+            @Override
+            public void onSuccess(Void v) {
+                verifiedRecovery = null;
+                cb.onSuccess(null);
+            }
+
+            @Override
+            public void onError(String message) {
+                cb.onError(message);
+            }
+        };
+        if (recovery.equals(verifiedRecovery) && normalize(email).equals(currentEmail()) && isSignedIn()) {
+            updatePassword(newPassword, save);
+            return;
+        }
         Map<String, Object> body = new HashMap<>();
         body.put("type", "recovery");
         body.put("email", normalize(email));
@@ -106,7 +126,8 @@ public final class AuthRepository {
         enqueueSession(sb.auth.verify(body), new ResultCallback<Void>() {
             @Override
             public void onSuccess(Void v) {
-                updatePassword(newPassword, cb);
+                verifiedRecovery = recovery;
+                updatePassword(newPassword, save);
             }
 
             @Override
@@ -157,6 +178,7 @@ public final class AuthRepository {
                 }
             });
         }
+        verifiedRecovery = null;
         sb.session.clear();
         ProfileRepository.get(app).clearCache();
     }

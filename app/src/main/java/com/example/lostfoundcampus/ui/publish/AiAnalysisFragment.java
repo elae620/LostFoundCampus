@@ -78,7 +78,7 @@ public class AiAnalysisFragment extends Fragment {
 
         queue.clear();
         queue.addAll(vm.analysisTargets());
-        Uri preview = vm.previewSource();
+        Uri preview = queue.isEmpty() ? null : queue.get(0);
         if (queue.isEmpty() || preview == null) {
             Nav.of(this).popBackStack();
             return;
@@ -114,7 +114,7 @@ public class AiAnalysisFragment extends Fragment {
             return;
         }
         Uri uri = queue.remove(0);
-        analyzer.analyze(uri, new PhotoAnalyzer.Callback() {
+        analyzer.analyze(uri, vm.cropFor(uri), new PhotoAnalyzer.Callback() {
             @Override
             public void onResult(@NonNull ImageAnalysis analysis) {
                 if (cancelled) return;

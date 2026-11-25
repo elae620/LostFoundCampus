@@ -142,6 +142,24 @@
                             android:layout_height="wrap_content"
                             android:text="@string/publish_analyze"
                             app:icon="@drawable/ic_sparkle" />
+
+                        <TextView
+                            android:id="@+id/txtCropHint"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="@dimen/lf_space_xs"
+                            android:text="@string/publish_crop_hint"
+                            android:textAppearance="@style/TextAppearance.LF.BodySmall"
+                            android:visibility="gone" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btnCrop"
+                            style="@style/Widget.LF.Button.Text"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="@string/publish_crop"
+                            android:visibility="gone"
+                            app:icon="@drawable/ic_crop" />
                     </LinearLayout>
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
@@ -242,23 +260,40 @@
 
             <TextView
                 style="@style/Widget.LF.FieldLabel"
-                android:labelFor="@id/actColor"
+                android:labelFor="@id/etColor"
                 android:text="@string/label_color" />
 
             <com.google.android.material.textfield.TextInputLayout
                 android:id="@+id/tilColor"
-                style="@style/Widget.LF.TextField.Dropdown"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content">
 
-                <com.google.android.material.textfield.MaterialAutoCompleteTextView
-                    android:id="@+id/actColor"
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/etColor"
                     style="@style/Widget.LF.EditText"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:hint="@string/hint_color"
-                    android:inputType="none" />
+                    android:imeOptions="actionNext"
+                    android:inputType="textCapSentences"
+                    android:maxLength="30" />
             </com.google.android.material.textfield.TextInputLayout>
+
+            <TextView
+                android:id="@+id/txtColorsDetected"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/lf_space_xs"
+                android:text="@string/colors_detected"
+                android:textAppearance="@style/TextAppearance.LF.BodySmall"
+                android:visibility="gone" />
+
+            <com.google.android.material.chip.ChipGroup
+                android:id="@+id/chipsColors"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:visibility="gone"
+                app:chipSpacingHorizontal="@dimen/lf_space_sm" />
 
             <TextView
                 style="@style/Widget.LF.FieldLabel"

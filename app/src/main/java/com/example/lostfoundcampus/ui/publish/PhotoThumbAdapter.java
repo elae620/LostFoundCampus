@@ -21,6 +21,9 @@ class PhotoThumbAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
     interface Listener {
         void onRemove(int index);
 
+        /** Photo touchée : ouvrir le cadrage de l'objet. */
+        void onOpen(int index);
+
         void onAdd();
     }
 
@@ -75,6 +78,16 @@ class PhotoThumbAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
             else ImageLoader.announcementPhoto(b.imgThumb, item.remotePath);
             b.imgThumb.setContentDescription(c.getString(R.string.cd_photo_thumb, number));
             b.btnRemove.setContentDescription(c.getString(R.string.cd_remove_photo, number));
+            if (item.localUri != null) {
+                b.imgThumb.setContentDescription(c.getString(R.string.cd_crop_photo, number));
+                b.imgThumb.setOnClickListener(v -> {
+                    int index = holder.getBindingAdapterPosition();
+                    if (index != RecyclerView.NO_POSITION) listener.onOpen(index);
+                });
+            } else {
+                b.imgThumb.setOnClickListener(null);
+                b.imgThumb.setClickable(false);
+            }
             b.btnRemove.setOnClickListener(v -> {
                 int index = holder.getBindingAdapterPosition();
                 if (index != RecyclerView.NO_POSITION) listener.onRemove(index);

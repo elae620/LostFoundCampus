@@ -2,9 +2,11 @@ package com.example.lostfoundcampus.ui.publish;
 
 import android.content.Context;
 
+
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
+import com.example.lostfoundcampus.util.ColorNames;
 import com.example.lostfoundcampus.R;
 import com.example.lostfoundcampus.data.AnnouncementRepository;
 import com.example.lostfoundcampus.data.AuthRepository;
@@ -38,19 +40,40 @@ final class AnnouncementPublisher {
 
     private final Context app;
     private final PublishViewModel vm;
-    private final Listener listener;
+    @Nullable
+    private Listener listener;
+    /** Copie : le formulaire peut changer pendant l'envoi. */
+    private final List<PublishViewModel.PhotoItem> photos;
+    private final List<String> removedPaths;
+    private final boolean editing;
+    private String progress = "";
     private final String announcementId;
     private final String userId;
     private final List<String> finalPaths = new ArrayList<>();
+    /** Photos envoyées par cette publication : supprimées si un envoi échoue avant l'enregistrement. */
+    private final List<PublishViewModel.PhotoItem> uploadedItems = new ArrayList<>();
     private volatile boolean cancelled;
 
-    AnnouncementPublisher(Context context, PublishViewModel vm, Listener listener) {
+    AnnouncementPublisher(Context context, PublishViewModel vm) {
         this.app = context.getApplicationContext();
         this.vm = vm;
-        this.listener = listener;
-        this.announcementId = vm.editingId != null ? vm.editingId : UUID.randomUUID().toString();
+        this.photos = new ArrayList<>(vm.photos);
+        this.removedPaths = new ArrayList<>(vm.removedRemotePaths);
+        this.editing = vm.isEditing();
+        this.announcementId = vm.editingId != null ? vm.editingId : vm.draftId;
         String uid = AuthRepository.get(app).currentUserId();
         this.userId = uid == null ? "" : uid;
+    }
+
+    /** Écran qui suit l'envoi (remplacé après une rotation, null s'il n'est plus affiché). */
+    void setListener(@Nullable Listener l) {
+        listener = l;
+        if (l != null) l.onProgress(progress);
+    }
+
+    private void progress(String message) {
+        progress = message;
+        if (listener != null) listener.onProgress(message);
     }
 
     void start() {
@@ -63,37 +86,45 @@ final class AnnouncementPublisher {
 
     private int localCount() {
         int n = 0;
-        for (PublishViewModel.PhotoItem p : vm.photos) if (p.localUri != null) n++;
+        for (PublishViewModel.PhotoItem p : photos) if (p.localUri != null) n++;
         return n;
     }
 
     private int localIndex(int index) {
         int n = 0;
-        for (int i = 0; i <= index && i < vm.photos.size(); i++) if (vm.photos.get(i).localUri != null) n++;
+        for (int i = 0; i <= index && i < photos.size(); i++) if (photos.get(i).localUri != null) n++;
         return n;
     }
 
     /** Envoie les photos une par une, dans l'ordre (le premier chemin est la photo de couverture). */
     private void uploadPhoto(int index) {
         if (cancelled) return;
-        if (index >= vm.photos.size()) {
+        if (index >= photos.size()) {
             saveRow();
             return;
         }
-        PublishViewModel.PhotoItem item = vm.photos.get(index);
+        PublishViewModel.PhotoItem item = photos.get(index);
         if (item.localUri == null) {
             finalPaths.add(item.remotePath);
             uploadPhoto(index + 1);
             return;
         }
-        listener.onProgress(app.getString(R.string.publish_uploading, localIndex(index), localCount()));
+        if (item.uploadedPath != null) {
+            finalPaths.add(item.uploadedPath);
+            uploadPhoto(index + 1);
+            return;
+        }
+        progress(app.getString(R.string.publish_uploading, localIndex(index), localCount()));
         AppExecutors.io(() -> {
             byte[] jpeg;
             try {
                 jpeg = PhotoCompressor.compress(app, item.localUri, PhotoCompressor.PHOTO_MAX_SIDE,
                         PhotoCompressor.PHOTO_MAX_BYTES);
             } catch (Exception e) {
-                AppExecutors.main(() -> fail(app.getString(R.string.error_photo_read)));
+                AppExecutors.main(() -> {
+                    discardUploads();
+                    fail(app.getString(R.string.error_photo_read));
+                });
                 return;
             }
             String path = userId + "/" + announcementId + "/" + UUID.randomUUID() + ".jpg";
@@ -102,11 +133,18 @@ final class AnnouncementPublisher {
                         @Override
                         public void onSuccess(String uploaded) {
                             finalPaths.add(uploaded);
+                            item.uploadedPath = uploaded;
+                            uploadedItems.add(item);
+                            if (cancelled) {
+                                discardUploads();
+                                return;
+                            }
                             uploadPhoto(index + 1);
                         }
 
                         @Override
                         public void onError(String message) {
+                            discardUploads();
                             fail(message);
                         }
                     }));
@@ -115,12 +153,12 @@ final class AnnouncementPublisher {
 
     private void saveRow() {
         if (cancelled) return;
-        listener.onProgress(app.getString(R.string.publish_saving));
+        progress(app.getString(R.string.publish_saving));
         Map<String, Object> body = new HashMap<>();
         body.put("type", vm.type.name());
         body.put("title", vm.title.trim());
         body.put("category", vm.category == null ? null : vm.category.name());
-        body.put("color", vm.color == null ? null : vm.color.name());
+        body.put("color", ColorNames.normalize(vm.color));
         body.put("description", vm.description.trim());
         body.put("latitude", vm.location == null ? 0 : vm.location.latitude);
         body.put("longitude", vm.location == null ? 0 : vm.location.longitude);
@@ -137,11 +175,12 @@ final class AnnouncementPublisher {
 
             @Override
             public void onError(String message) {
+                // Ne pas supprimer les photos : après un délai dépassé, l'annonce a pu être enregistrée.
                 fail(message);
             }
         };
         AnnouncementRepository repo = AnnouncementRepository.get(app);
-        if (vm.isEditing()) {
+        if (editing) {
             repo.update(announcementId, body, saved);
         } else {
             body.put("id", announcementId);
@@ -152,8 +191,8 @@ final class AnnouncementPublisher {
     private void saveAnalyses() {
         if (cancelled) return;
         List<Map<String, Object>> rows = new ArrayList<>();
-        for (int i = 0; i < vm.photos.size(); i++) {
-            ImageAnalysis a = vm.photos.get(i).analysis;
+        for (int i = 0; i < photos.size(); i++) {
+            ImageAnalysis a = photos.get(i).analysis;
             if (a == null) continue;
             Map<String, Object> row = new HashMap<>();
             row.put("announcement_id", announcementId);
@@ -161,7 +200,7 @@ final class AnnouncementPublisher {
             row.put("labels", a.labels);
             row.put("label_confidence", a.confidence);
             row.put("detected_texts", a.detectedTexts);
-            row.put("dominant_color", a.dominantColor == null ? null : a.dominantColor.name());
+            row.put("dominant_color", ColorNames.normalize(a.dominantColor));
             row.put("user_confirmed", true);
             rows.add(row);
         }
@@ -182,12 +221,24 @@ final class AnnouncementPublisher {
     private void finish() {
         if (cancelled) return;
         StorageRepository storage = StorageRepository.get(app);
-        for (String path : vm.removedRemotePaths) storage.deleteQuietly(StorageRepository.BUCKET_PHOTOS, path);
-        listener.onDone(announcementId);
+        for (String path : removedPaths) storage.deleteQuietly(StorageRepository.BUCKET_PHOTOS, path);
+        vm.publisher = null;
+        vm.publishedId = announcementId;
+        if (listener != null) listener.onDone(announcementId);
+    }
+
+    private void discardUploads() {
+        StorageRepository storage = StorageRepository.get(app);
+        for (PublishViewModel.PhotoItem p : uploadedItems) {
+            if (p.uploadedPath != null) storage.deleteQuietly(StorageRepository.BUCKET_PHOTOS, p.uploadedPath);
+            p.uploadedPath = null;
+        }
+        uploadedItems.clear();
     }
 
     private void fail(@Nullable String message) {
         if (cancelled) return;
-        listener.onError(message == null ? app.getString(R.string.error_generic) : message);
+        vm.publisher = null;
+        if (listener != null) listener.onError(message == null ? app.getString(R.string.error_generic) : message);
     }
 }

@@ -53,7 +53,7 @@ public final class AnnouncementRepository {
             q.put("or", "(title.ilike.*" + term + "*,description.ilike.*" + term
                     + "*,location_precision.ilike.*" + term + "*)");
         }
-        q.put("order", "created_at.desc");
+        q.put("order", "created_at.desc,id.desc");   // id : ordre stable entre les pages
         q.put("limit", String.valueOf(PAGE_SIZE));
         q.put("offset", String.valueOf(offset));
         Calls.enqueue(app, sb.rest.announcements(q), Mappers::announcements, cb);

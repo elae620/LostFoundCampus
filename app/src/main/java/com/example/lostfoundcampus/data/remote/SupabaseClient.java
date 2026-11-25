@@ -1,6 +1,7 @@
 package com.example.lostfoundcampus.data.remote;
 
 import android.content.Context;
+import android.os.Looper;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -106,6 +107,18 @@ public final class SupabaseClient {
 
     // ------------------------------------------------------------------ Jeton
 
+    /**
+     * Jeton valide, rafraîchi si besoin (bloquant, hors du fil principal). Pour Glide, qui ne passe pas
+     * par OkHttp : Storage répond 400 (et non 401) à un jeton périmé, il faut donc agir avant.
+     */
+    @Nullable
+    public String freshAccessToken() {
+        if (Looper.myLooper() != Looper.getMainLooper() && session.isSignedIn() && session.isExpiringSoon()) {
+            refreshBlocking(session.accessToken());
+        }
+        return session.accessToken();
+    }
+
     private Response addBearer(Interceptor.Chain chain) throws IOException {
         if (session.isSignedIn() && session.isExpiringSoon()) refreshBlocking(session.accessToken());
         String token = session.accessToken();
@@ -128,6 +141,8 @@ public final class SupabaseClient {
                 Map<String, Object> body = new HashMap<>();
                 body.put("refresh_token", refresh);
                 retrofit2.Response<AuthSession> r = auth.refresh(body).execute();
+                // Déconnexion (ou autre compte) pendant l'appel : ne pas rouvrir l'ancienne session.
+                if (!refresh.equals(session.refreshToken())) return false;
                 if (r.isSuccessful() && r.body() != null && r.body().hasTokens()) {
                     session.save(r.body());
                     return true;
@@ -137,7 +152,7 @@ public final class SupabaseClient {
                     session.notifyExpired();
                 }
                 return false;
-            } catch (IOException e) {
+            } catch (IOException | RuntimeException e) {
                 return false;   // hors ligne : on garde la session, la requête échouera proprement
             }
         }

@@ -157,9 +157,10 @@
     <string name="publish_tab_found">J’ai trouvé un objet</string>
     <string name="publish_photos_title">Photos</string>
     <string name="publish_photos_empty_lost">Ajoutez jusqu’à 5 photos de l’objet depuis votre galerie.</string>
-    <string name="publish_photos_empty_found">Prenez l’objet en photo. Vous pouvez en ajouter plusieurs.</string>
+    <string name="publish_photos_empty_found">Prenez l’objet en photo ou choisissez une image dans votre galerie. Vous pouvez en ajouter plusieurs.</string>
     <string name="publish_photos_count">%1$d / %2$d photos</string>
     <string name="publish_photos_max">5 photos maximum. Supprimez-en une pour en ajouter une autre.</string>
+    <string name="publish_add_photo_title">Ajouter une photo</string>
     <string name="publish_pick_gallery">Choisir dans la galerie</string>
     <string name="publish_take_photo">Prendre une photo</string>
     <string name="publish_add_photo">Ajouter</string>
@@ -183,7 +184,9 @@
     <string name="label_category">Catégorie *</string>
     <string name="hint_category">Choisir une catégorie</string>
     <string name="label_color">Couleur</string>
-    <string name="hint_color">Choisir une couleur</string>
+    <string name="hint_color">Ex. : lilas, bleu marine, argent</string>
+    <string name="colors_detected">Couleurs détectées sur la photo (touchez pour choisir) :</string>
+    <string name="cd_color_chip">Choisir la couleur %1$s</string>
     <string name="label_description">Description</string>
     <string name="hint_description">Signes distinctifs, contenu, état…</string>
     <string name="label_location">Lieu sur le campus *</string>
@@ -349,6 +352,17 @@
     <string name="edit_profile_email_note">L’adresse e-mail universitaire ne peut pas être modifiée.</string>
 
     <!-- ===== Traduction des étiquettes ML Kit (clé anglaise → libellé affiché), mêmes positions ===== -->
+    <!-- Cadrage de l'objet pour l'analyse -->
+    <string name="crop_title">Cadrer l’objet</string>
+    <string name="crop_hint">Ajustez le cadre autour de l’objet seulement (sans la main ni le fond) pour une analyse plus précise. La photo publiée reste entière.</string>
+    <string name="crop_analyze">Analyser cette zone</string>
+    <string name="crop_full">Toute la photo</string>
+    <string name="crop_error">Impossible d’ouvrir la photo.</string>
+    <string name="cd_crop_area">Zone de cadrage : glissez les coins pour l’ajuster, l’intérieur pour la déplacer</string>
+    <string name="publish_crop">Cadrer l’objet</string>
+    <string name="publish_crop_hint">Résultat imprécis ? Touchez une photo pour cadrer l’objet.</string>
+    <string name="preview_crop">Cadrer l’objet</string>
+    <string name="cd_crop_photo">Cadrer l’objet sur la photo %1$d</string>
     <string-array name="mlkit_label_keys" translatable="false">
         <item>mobile phone</item>
         <item>bag</item>
@@ -377,6 +391,70 @@
         <item>gadget</item>
         <item>keyboard</item>
         <item>tablet computer</item>
+        <item>cell phone</item>
+        <item>smartphone</item>
+        <item>telephone</item>
+        <item>electronic device</item>
+        <item>headset</item>
+        <item>key</item>
+        <item>keychain</item>
+        <item>purse</item>
+        <item>suitcase</item>
+        <item>id card</item>
+        <item>coat</item>
+        <item>shirt</item>
+        <item>sweater</item>
+        <item>glove</item>
+        <item>mouse</item>
+        <item>earphones</item>
+        <item>earbuds</item>
+        <item>wristwatch</item>
+        <item>briefcase</item>
+        <item>hoodie</item>
+        <item>boot</item>
+        <item>jewellery</item>
+        <item>necklace</item>
+        <item>bracelet</item>
+        <item>charger</item>
+        <item>notebook</item>
+        <item>calculator</item>
+        <item>badge</item>
+        <item>passport</item>
+        <item>credit card</item>
+        <item>t-shirt</item>
+        <item>dress</item>
+        <item>monitor</item>
+        <item>water bottle</item>
+        <item>pencil case</item>
+        <item>helmet</item>
+        <item>remote control</item>
+        <item>music player</item>
+        <item>hard drive</item>
+        <item>speaker</item>
+        <item>microphone</item>
+        <item>sock</item>
+        <item>sweatshirt</item>
+        <item>cardigan</item>
+        <item>jersey</item>
+        <item>lab coat</item>
+        <item>suit</item>
+        <item>tie</item>
+        <item>mug</item>
+        <item>binder</item>
+        <item>eraser</item>
+        <item>ruler</item>
+        <item>scissors</item>
+        <item>lipstick</item>
+        <item>perfume</item>
+        <item>lighter</item>
+        <item>ball</item>
+        <item>padlock</item>
+        <item>racket</item>
+        <item>plush</item>
+        <item>beanie</item>
+        <item>goggles</item>
+        <item>blazer</item>
+        <item>shorts</item>
     </string-array>
     <string-array name="mlkit_label_fr">
         <item>Téléphone</item>
@@ -406,5 +484,70 @@
         <item>Appareil électronique</item>
         <item>Clavier</item>
         <item>Tablette</item>
+        <item>Téléphone</item>
+        <item>Smartphone</item>
+        <item>Téléphone</item>
+        <item>Appareil électronique</item>
+        <item>Casque</item>
+        <item>Clé</item>
+        <item>Porte-clés</item>
+        <item>Porte-monnaie</item>
+        <item>Valise</item>
+        <item>Carte d’identité</item>
+        <item>Manteau</item>
+        <item>Chemise</item>
+        <item>Pull</item>
+        <item>Gant</item>
+        <item>Souris</item>
+        <item>Écouteurs</item>
+        <item>Écouteurs</item>
+        <item>Montre</item>
+        <item>Porte-documents</item>
+        <item>Sweat à capuche</item>
+        <item>Botte</item>
+        <item>Bijou</item>
+        <item>Collier</item>
+        <item>Bracelet</item>
+        <item>Chargeur</item>
+        <item>Cahier</item>
+        <item>Calculatrice</item>
+        <item>Badge</item>
+        <item>Passeport</item>
+        <item>Carte bancaire</item>
+        <item>T-shirt</item>
+        <item>Robe</item>
+        <item>Écran</item>
+        <item>Gourde</item>
+        <item>Trousse</item>
+        <item>Casque</item>
+        <item>Télécommande</item>
+        <item>Baladeur</item>
+        <item>Disque dur</item>
+        <item>Enceinte</item>
+        <item>Micro</item>
+        <item>Chaussette</item>
+        <item>Sweat</item>
+        <item>Gilet</item>
+        <item>Maillot</item>
+        <item>Blouse</item>
+        <item>Costume</item>
+        <item>Cravate</item>
+        <item>Tasse</item>
+        <item>Classeur</item>
+        <item>Gomme</item>
+        <item>Règle</item>
+        <item>Ciseaux</item>
+        <item>Rouge à lèvres</item>
+        <item>Parfum</item>
+        <item>Briquet</item>
+        <item>Ballon</item>
+        <item>Cadenas</item>
+        <item>Raquette</item>
+        <item>Peluche</item>
+        <item>Bonnet</item>
+        <item>Lunettes de protection</item>
+        <item>Blazer</item>
+        <item>Short</item>
     </string-array>
+    <string name="publish_in_progress">Publication en cours, patientez…</string>
 </resources>

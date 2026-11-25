@@ -23,6 +23,15 @@ public final class StorageRepository {
     public static final String BUCKET_AVATARS = "avatars";
     private static final MediaType JPEG = MediaType.get("image/jpeg");
 
+    /**
+     * En-têtes partagés : GlideUrl compare aussi les en-têtes, une instance par image empêcherait
+     * le cache mémoire de fonctionner. Le jeton est lu à chaque téléchargement.
+     */
+    private static final LazyHeaders HEADERS = new LazyHeaders.Builder()
+            .addHeader("apikey", SupabaseClient.apiKey())
+            .addHeader("Authorization", () -> "Bearer " + SupabaseClient.get().freshAccessToken())
+            .build();
+
     private static StorageRepository instance;
     private final Context app;
     private final SupabaseClient sb;
@@ -59,11 +68,7 @@ public final class StorageRepository {
     @Nullable
     public static GlideUrl glideUrl(String bucket, @Nullable String path) {
         if (path == null || path.isEmpty()) return null;
-        SupabaseClient sb = SupabaseClient.get();
-        String url = SupabaseClient.baseUrl() + "/storage/v1/object/authenticated/" + bucket + "/" + path;
-        return new GlideUrl(url, new LazyHeaders.Builder()
-                .addHeader("apikey", SupabaseClient.apiKey())
-                .addHeader("Authorization", () -> "Bearer " + sb.session.accessToken())
-                .build());
+        String url = SupabaseClient.baseUrl() + "/storage/v1/object/" + bucket + "/" + path;
+        return new GlideUrl(url, HEADERS);
     }
 }
